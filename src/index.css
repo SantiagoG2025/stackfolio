@@ -1,0 +1,48 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #0b1120;
+  color: #f1f5f9;
+  font-family: Arial, sans-serif;
+}
+
+.hero {
+  min-height: 75vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: linear-gradient(135deg, #0b1120, #172554);
+}
+
+.hero h1 {
+  max-width: 850px;
+  margin: 20px auto;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-weight: bold;
+}
+
+.hero p.lead {
+  max-width: 650px;
+  margin: 0 auto;
+  color: #cbd5e1;
+}
+
+section h2 {
+  margin-bottom: 20px;
+}
+
+a {
+  text-decoration: none;
+}
+
+@media (max-width: 576px) {
+  .hero {
+    min-height: 65vh;
+    padding: 50px 15px;
+  }
+}
