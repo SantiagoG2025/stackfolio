@@ -1,53 +1,58 @@
+import React, { useState } from 'react';
+import Login from './componentes/Login';
+import Registro from './componentes/Registro';
+import Projects from './componentes/Projects'; // <--- Importas la vista del visitante
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Navegar from './componentes/navegar'
+export default function App() {
+  // Estado para controlar qué vista se muestra ('login', 'registro' o 'portafolio')
+  const [vistaActual, setVistaActual] = useState('portafolio'); 
 
-function Inicio() {
   return (
-    <section className="hero text-center">
-      <div className="container">
-        <p className="text-info fw-bold">DESARROLLADOR FULLSTACK</p>
-        <h1>Hola, soy un desarrollador en formación.</h1>
-        <p className="lead">
-          Creo aplicaciones web modernas, funcionales y adaptables.
-        </p>
-        <a href="#tecnologias" className="btn btn-info mt-3">
-          Conocer tecnologías
-        </a>
-      </div>
-    </section>
-  )
-}
+    <div style={{ backgroundColor: '#030a16', minHeight: '100vh', color: '#00f3ff' }}>
+      
+      {/* Barra de navegación superior para probar y cambiar de vista */}
+      <nav style={{ display: 'flex', justifyContent: 'center', gap: '15px', padding: '20px', background: 'rgba(2,10,24,0.9)', borderBottom: '1px solid rgba(0,243,255,0.2)' }}>
+        <button 
+          onClick={() => setVistaActual('portafolio')}
+          style={{
+            background: vistaActual === 'portafolio' ? '#00f3ff' : 'transparent',
+            color: vistaActual === 'portafolio' ? '#030a16' : '#00f3ff',
+            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
+          }}
+        >
+          [ VISITANTE / PORTAFOLIO ]
+        </button>
 
-function Proyectos() {
-  return (
-    <section className="container py-5">
-      <h2>Mis proyectos</h2>
-      <p>Próximamente encontrarás aquí mis proyectos y demostraciones.</p>
-    </section>
-  )
-}
+        <button 
+          onClick={() => setVistaActual('login')}
+          style={{
+            background: vistaActual === 'login' ? '#00f3ff' : 'transparent',
+            color: vistaActual === 'login' ? '#030a16' : '#00f3ff',
+            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
+          }}
+        >
+          [ LOGIN ]
+        </button>
 
-function Contacto() {
-  return (
-    <section className="container py-5">
-      <h2>Contacto</h2>
-      <p>Podés comunicarte conmigo mediante el formulario de contacto.</p>
-    </section>
-  )
-}
+        <button 
+          onClick={() => setVistaActual('registro')}
+          style={{
+            background: vistaActual === 'registro' ? '#00f3ff' : 'transparent',
+            color: vistaActual === 'registro' ? '#030a16' : '#00f3ff',
+            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
+          }}
+        >
+          [ REGISTRO ]
+        </button>
+      </nav>
 
-function App() {
-  return (
-    <BrowserRouter>
-      <Navegar />
-      <Routes>
-        <Route path="/" element={<Inicio />} />
-        <Route path="/proyectos" element={<Proyectos />} />
-        <Route path="/contacto" element={<Contacto />} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
+      {/* Renderizado condicional: muestra la vista según el botón que elijas */}
+      <main>
+        {vistaActual === 'portafolio' && <Projects />}
+        {vistaActual === 'login' && <Login />}
+        {vistaActual === 'registro' && <Registro />}
+      </main>
 
-export default App
+    </div>
+  );
+}
