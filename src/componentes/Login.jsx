@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import GatoHolografico from './GatoHolografico';
+import './Login.css';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -8,13 +9,16 @@ export default function Login() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [error, setError] = useState('');
 
-  // Estados compatibles con el nuevo gato 3D
-  const [estadoGato, setEstadoGato] = useState('esperando');
+  // Estados del HoloCat
+  const [estadoGato, setEstadoGato] = useState('tranquilo');
   const [loginExitoso, setLoginExitoso] = useState(false);
 
   const canvasRef = useRef(null);
 
-  // FONDO MATRIX
+  // =========================================
+  // FONDO MATRIX ORIGINAL
+  // =========================================
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -71,23 +75,29 @@ export default function Login() {
     };
   }, []);
 
-  // VOLVER AL ESTADO NORMAL AL ESCRIBIR
+  // =========================================
+  // CAMBIOS EN LOS CAMPOS
+  // =========================================
+
   const manejarCambio = (setter) => (e) => {
     setter(e.target.value);
 
     if (!loginExitoso) {
-      setEstadoGato('esperando');
+      setEstadoGato('tranquilo');
       setError('');
     }
   };
 
-  // VERIFICACIÓN DEL LOGIN
+  // =========================================
+  // VALIDACIÓN DEL LOGIN
+  // =========================================
+
   const handleLogin = (e) => {
     e.preventDefault();
 
     if (!email.trim() || !password) {
       setError('ERROR: Todos los campos son obligatorios.');
-      setEstadoGato('incorrecta');
+      setEstadoGato('enojado');
       return;
     }
 
@@ -95,397 +105,297 @@ export default function Login() {
 
     if (!emailRegex.test(email)) {
       setError('SEC_ERROR: Formato de correo electrónico inválido.');
-      setEstadoGato('incorrecta');
+      setEstadoGato('enojado');
       return;
     }
 
     if (password.length < 6) {
       setError('SEC_ERROR: La contraseña debe tener al menos 6 caracteres.');
-      setEstadoGato('incorrecta');
+      setEstadoGato('enojado');
       return;
     }
 
     // ACCESO CORRECTO
     setError('');
-    setEstadoGato('correcta');
+    setEstadoGato('feliz');
     setLoginExitoso(true);
   };
 
-  // CERRAR SESIÓN
+  // =========================================
+  // REINICIAR LOGIN
+  // =========================================
+
   const reiniciarLogin = () => {
     setEmail('');
     setPassword('');
     setMostrarPassword(false);
     setError('');
     setLoginExitoso(false);
-    setEstadoGato('esperando');
+    setEstadoGato('tranquilo');
   };
 
-  // COLOR DINÁMICO
+  // =========================================
+  // COLORES DINÁMICOS
+  // =========================================
+
   const neonColor =
-    estadoGato === 'incorrecta'
+    estadoGato === 'enojado'
       ? '#ff668b'
-      : estadoGato === 'correcta'
+      : estadoGato === 'feliz'
       ? '#4affb0'
       : '#00eaff';
 
-  // MENSAJE DINÁMICO
+  // =========================================
+  // MENSAJES DEL GATO
+  // =========================================
+
   const mensajeGato =
-    estadoGato === 'incorrecta'
+    estadoGato === 'enojado'
       ? '// ACCESO DENEGADO: GUARDIÁN MOLESTO //'
-      : estadoGato === 'correcta'
+      : estadoGato === 'feliz'
       ? '// ACCESO CONCEDIDO: GUARDIÁN FELIZ //'
       : '// SISTEMA ACTIVO: GUARDIÁN EN ESPERA //';
 
   return (
-    <section
-      style={{
-        position: 'relative',
-        padding: '30px 20px',
-        minHeight: '85vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#00eaff',
-        fontFamily: 'monospace, sans-serif',
-        backgroundColor: '#030a16',
-        overflow: 'hidden'
-      }}
-    >
+    <section className="login-page">
 
       {/* FONDO MATRIX */}
       <canvas
         ref={canvasRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 1,
-          opacity: 0.35,
-          pointerEvents: 'none'
-        }}
+        className="matrix-background"
       />
 
-      {/* LÍNEAS DIGITALES */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background:
-            'repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px)',
-          zIndex: 1,
-          pointerEvents: 'none'
-        }}
-      />
+      {/* LÍNEAS DIGITALES ORIGINALES */}
+      <div className="login-grid-overlay" />
 
-      <div
-        style={{
-          maxWidth: '440px',
-          width: '100%',
-          position: 'relative',
-          zIndex: 2
-        }}
-      >
+      {/* LUCES DECORATIVAS */}
+      <div className="login-glow login-glow-cyan" />
+      <div className="login-glow login-glow-purple" />
 
-        {/* GATO HOLOGRÁFICO 3D */}
-        <div style={{ marginBottom: '10px' }}>
-          <GatoHolografico resultado={estadoGato} />
-        </div>
+      {/* CONTENIDO PRINCIPAL */}
+      <div className="login-layout">
 
-        {/* ENCABEZADO */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        {/* =================================
+            PANEL DEL HOLOCAT
+        ================================= */}
 
-          <h2
-            style={{
-              fontSize: '2rem',
-              marginBottom: '4px',
-              color: neonColor,
-              fontWeight: '900',
-              letterSpacing: '3px',
-              textShadow: `0 0 12px ${neonColor}`,
-              textTransform: 'uppercase',
-              transition: 'color 0.3s ease'
-            }}
-          >
-            [ STACKFOLIO ]
-          </h2>
+        <section className="login-mascot-panel">
 
-          <p
-            style={{
-              color: neonColor,
-              fontSize: '0.75rem',
-              letterSpacing: '1.5px',
-              transition: 'color 0.3s ease'
-            }}
-          >
-            {mensajeGato}
-          </p>
+          <div className="login-heading">
+            <h1>[ STACKFOLIO ]</h1>
+            <span>Digital Guardian System</span>
+          </div>
 
-        </div>
+          <div className="mascot-stage">
 
-        {/* ACCESO EXITOSO */}
-        {loginExitoso ? (
+            <div className="mascot-orbit" />
 
-          <div
-            style={{
-              backgroundColor: 'rgba(4, 18, 38, 0.9)',
-              backdropFilter: 'blur(8px)',
-              border: '2px solid #4affb0',
-              borderRadius: '12px',
-              padding: '35px 25px',
-              textAlign: 'center',
-              boxShadow: '0 0 30px rgba(0, 255, 102, 0.3)'
-            }}
-          >
-
-            <h3
-              style={{
-                color: '#4affb0',
-                marginBottom: '15px',
-                textShadow: '0 0 10px rgba(0,255,102,0.6)'
-              }}
-            >
-              [ ACCESS_GRANTED ]
-            </h3>
-
-            <p
-              style={{
-                color: '#00b8d4',
-                fontSize: '0.9rem',
-                marginBottom: '20px'
-              }}
-            >
-              ¡Bienvenido! El guardián holográfico ha validado tus credenciales.
-            </p>
-
-            <button
-              onClick={reiniciarLogin}
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '0.95rem',
-                background: 'rgba(0, 255, 102, 0.15)',
-                color: '#4affb0',
-                border: '1px solid #4affb0',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                letterSpacing: '1.5px',
-                textTransform: 'uppercase',
-                boxShadow: '0 0 10px rgba(0, 255, 102, 0.3)'
-              }}
-            >
-              CERRAR SESIÓN
-            </button>
+            <GatoHolografico
+              estadoGato={estadoGato}
+            />
 
           </div>
 
-        ) : (
-
-          /* FORMULARIO */
-          <form
-            onSubmit={handleLogin}
-            style={{
-              backgroundColor: 'rgba(4, 18, 38, 0.85)',
-              backdropFilter: 'blur(8px)',
-              border: `2px solid ${neonColor}`,
-              borderRadius: '12px',
-              padding: '25px',
-              boxShadow: `0 0 25px ${neonColor}66`,
-              transition: 'border 0.3s ease, box-shadow 0.3s ease'
-            }}
+          <div
+            className={`mascot-status ${
+              estadoGato === 'enojado'
+                ? 'status-error'
+                : estadoGato === 'feliz'
+                ? 'status-success'
+                : ''
+            }`}
           >
+            {mensajeGato}
+          </div>
 
-            {/* ERROR */}
-            {error && (
-              <div
-                role="alert"
-                style={{
-                  backgroundColor: 'rgba(255, 0, 85, 0.15)',
-                  border: '1px solid #ff668b',
-                  color: '#ff668b',
-                  padding: '10px 14px',
-                  borderRadius: '4px',
-                  marginBottom: '16px',
-                  textAlign: 'center',
-                  fontSize: '0.8rem',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 15px rgba(255, 0, 85, 0.3)'
-                }}
-              >
-                {error}
+        </section>
+
+        {/* =================================
+            PANEL DEL LOGIN
+        ================================= */}
+
+        <section className="login-form-panel">
+
+          {loginExitoso ? (
+
+            /* ACCESO EXITOSO */
+
+            <div className="login-success">
+
+              <div className="success-icon">
+                ✓
               </div>
-            )}
 
-            {/* EMAIL */}
-            <div style={{ marginBottom: '16px' }}>
+              <h2>[ ACCESS_GRANTED ]</h2>
 
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  marginBottom: '6px',
-                  color: '#00eaff',
-                  fontWeight: '700',
-                  letterSpacing: '1.5px'
-                }}
+              <p>
+                ¡Bienvenido! El guardián holográfico ha
+                validado tus credenciales.
+              </p>
+
+              <button
+                type="button"
+                onClick={reiniciarLogin}
+                className="login-submit success-button"
               >
-                EMAIL ADDRESS
-              </label>
-
-              <input
-                type="email"
-                placeholder="user@domain.com"
-                value={email}
-                onChange={manejarCambio(setEmail)}
-                autoComplete="username"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '4px',
-                  background: 'rgba(2, 10, 24, 0.9)',
-                  border: '1px solid #00eaff',
-                  color: '#00eaff',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  fontFamily: 'monospace',
-                  fontSize: '0.95rem'
-                }}
-              />
+                CERRAR SESIÓN
+              </button>
 
             </div>
 
-            {/* PASSWORD */}
-            <div style={{ marginBottom: '20px' }}>
+          ) : (
 
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  marginBottom: '6px',
-                  color: '#00eaff',
-                  fontWeight: '700',
-                  letterSpacing: '1.5px'
-                }}
-              >
-                PASSWORD
-              </label>
+            /* FORMULARIO */
 
-              <div
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
+            <>
+              <div className="form-heading">
+                <span className="system-label">
+                  // AUTHENTICATION MODULE
+                </span>
+
+                <h2>Iniciar sesión</h2>
+
+                <p>
+                  Ingresá tus credenciales para acceder al sistema.
+                </p>
+              </div>
+
+              <form
+                onSubmit={handleLogin}
+                className="login-form"
               >
 
-                <input
-                  type={mostrarPassword ? 'text' : 'password'}
-                  placeholder="********"
-                  value={password}
-                  onChange={manejarCambio(setPassword)}
-                  autoComplete="current-password"
-                  style={{
-                    width: '100%',
-                    padding: '10px 38px 10px 12px',
-                    borderRadius: '4px',
-                    background: 'rgba(2, 10, 24, 0.9)',
-                    border: `1px solid ${neonColor}`,
-                    color: '#00eaff',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    fontFamily: 'monospace',
-                    fontSize: '0.95rem'
-                  }}
-                />
+                {/* ERROR */}
+                {error && (
+                  <div
+                    role="alert"
+                    className="login-error"
+                  >
+                    {error}
+                  </div>
+                )}
 
-                {/* MOSTRAR / OCULTAR CONTRASEÑA */}
+                {/* EMAIL */}
+                <div className="form-group">
+
+                  <label htmlFor="login-email">
+                    EMAIL ADDRESS
+                  </label>
+
+                  <div className="input-wrapper">
+
+                    <input
+                      id="login-email"
+                      type="email"
+                      placeholder="user@domain.com"
+                      value={email}
+                      onChange={manejarCambio(setEmail)}
+                      autoComplete="username"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* PASSWORD */}
+                <div className="form-group">
+
+                  <label htmlFor="login-password">
+                    PASSWORD
+                  </label>
+
+                  <div className="input-wrapper">
+
+                    <input
+                      id="login-password"
+                      type={mostrarPassword ? 'text' : 'password'}
+                      placeholder="********"
+                      value={password}
+                      onChange={manejarCambio(setPassword)}
+                      autoComplete="current-password"
+                    />
+
+                    {/* MOSTRAR / OCULTAR */}
+
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-label={
+                        mostrarPassword
+                          ? 'Ocultar contraseña'
+                          : 'Mostrar contraseña'
+                      }
+                      onClick={() => setMostrarPassword(!mostrarPassword)}
+                    >
+
+                      {mostrarPassword ? (
+
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+
+                      ) : (
+
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+
+                      )}
+
+                    </button>
+
+                  </div>
+
+                  {/* PROGRESO DE CONTRASEÑA */}
+
+                  <div className="password-progress">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={password.length > index ? 'active' : ''}
+                      />
+                    ))}
+                  </div>
+
+                </div>
+
+                {/* BOTÓN INGRESAR */}
+
                 <button
-                  type="button"
-                  aria-label={
-                    mostrarPassword
-                      ? 'Ocultar contraseña'
-                      : 'Mostrar contraseña'
-                  }
-                  onClick={() => setMostrarPassword(!mostrarPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    background: 'none',
-                    border: 'none',
-                    color: '#00eaff',
-                    cursor: 'pointer',
-                    padding: '0',
-                    display: 'flex'
-                  }}
+                  type="submit"
+                  className="login-submit"
                 >
-
-                  {mostrarPassword ? (
-
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-
-                  ) : (
-
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-
-                  )}
-
+                  <span>EXECUTE_LOGIN</span>
+                  <span className="button-arrow">→</span>
                 </button>
 
+              </form>
+
+              <div className="register-section">
+                <span>STACKFOLIO // SECURE ACCESS</span>
               </div>
 
-            </div>
+            </>
 
-            {/* BOTÓN DE INGRESO */}
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '1rem',
-                background: 'rgba(0, 243, 255, 0.15)',
-                color: '#00eaff',
-                border: '2px solid #00eaff',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                boxShadow: '0 0 15px rgba(0, 243, 255, 0.4)'
-              }}
-            >
-              EXECUTE_LOGIN
-            </button>
+          )}
 
-          </form>
-
-        )}
+        </section>
 
       </div>
 

@@ -1,56 +1,72 @@
 import React, { useState } from 'react';
-import Login from './componentes/Login';
 import Registro from './componentes/Registro';
-import Projects from './componentes/Projects'; // <--- Importas la vista del visitante
+import Login from './componentes/Login'; // Asegúrate de tener tu componente Login
+import Projects from './componentes/Projects'; // Tu componente de portafolio
 
 export default function App() {
-  // Estado para controlar qué vista se muestra ('login', 'registro' o 'portafolio')
-  const [vistaActual, setVistaActual] = useState('portafolio'); 
+  // Estados posibles: 'portafolio', 'login', 'registro'
+  const [vistaActual, setVistaActual] = useState('portafolio');
 
   return (
-    <div style={{ backgroundColor: '#030a16', minHeight: '100vh', color: '#00f3ff' }}>
+    <div style={{ backgroundColor: '#030a16', minHeight: '100vh', color: '#f8fafc' }}>
       
-      {/* Barra de navegación superior para probar y cambiar de vista */}
-      <nav style={{ display: 'flex', justifyContent: 'center', gap: '15px', padding: '20px', background: 'rgba(2,10,24,0.9)', borderBottom: '1px solid rgba(0,243,255,0.2)' }}>
-        <button 
+      {/* BARRA DE NAVEGACIÓN SUPERIOR */}
+      <nav style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '15px 30px', borderBottom: '1px solid rgba(0, 243, 255, 0.2)',
+        backgroundColor: 'rgba(3, 10, 22, 0.9)', position: 'sticky', top: 0, zIndex: 100
+      }}>
+        <h1 
           onClick={() => setVistaActual('portafolio')}
-          style={{
-            background: vistaActual === 'portafolio' ? '#00f3ff' : 'transparent',
-            color: vistaActual === 'portafolio' ? '#030a16' : '#00f3ff',
-            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
-          }}
+          style={{ color: '#00f3ff', fontWeight: 'bold', cursor: 'pointer', letterSpacing: '2px', fontSize: '1.2rem' }}
         >
-          [ VISITANTE / PORTAFOLIO ]
-        </button>
+          STACKFOLIO
+        </h1>
 
-        <button 
-          onClick={() => setVistaActual('login')}
-          style={{
-            background: vistaActual === 'login' ? '#00f3ff' : 'transparent',
-            color: vistaActual === 'login' ? '#030a16' : '#00f3ff',
-            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
-          }}
-        >
-          [ LOGIN ]
-        </button>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <button 
+            onClick={() => setVistaActual('portafolio')}
+            style={{
+              background: vistaActual === 'portafolio' ? '#00f3ff' : 'transparent',
+              color: vistaActual === 'portafolio' ? '#030a16' : '#00f3ff',
+              border: '1px solid #00f3ff', padding: '8px 16px', borderRadius: '6px',
+              cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem'
+            }}
+          >
+            Portafolio
+          </button>
 
-        <button 
-          onClick={() => setVistaActual('registro')}
-          style={{
-            background: vistaActual === 'registro' ? '#00f3ff' : 'transparent',
-            color: vistaActual === 'registro' ? '#030a16' : '#00f3ff',
-            border: '1px solid #00f3ff', padding: '8px 16px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', borderRadius: '4px'
-          }}
-        >
-          [ REGISTRO ]
-        </button>
+          <button 
+            onClick={() => setVistaActual('login')}
+            style={{
+              background: vistaActual === 'login' ? '#00f3ff' : 'transparent',
+              color: vistaActual === 'login' ? '#030a16' : '#00f3ff',
+              border: '1px solid #00f3ff', padding: '8px 16px', borderRadius: '6px',
+              cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem'
+            }}
+          >
+            Login
+          </button>
+
+          <button 
+            onClick={() => setVistaActual('registro')}
+            style={{
+              background: vistaActual === 'registro' ? '#00f3ff' : 'transparent',
+              color: vistaActual === 'registro' ? '#030a16' : '#00f3ff',
+              border: '1px solid #00f3ff', padding: '8px 16px', borderRadius: '6px',
+              cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem'
+            }}
+          >
+            Registro
+          </button>
+        </div>
       </nav>
 
-      {/* Renderizado condicional: muestra la vista según el botón que elijas */}
+      {/* RENDERIZADO CONDICIONAL DE LAS VISTAS */}
       <main>
         {vistaActual === 'portafolio' && <Projects />}
-        {vistaActual === 'login' && <Login />}
-        {vistaActual === 'registro' && <Registro />}
+        {vistaActual === 'login' && <Login onIrARegistro={() => setVistaActual('registro')} onLoginExitoso={() => setVistaActual('portafolio')} />}
+        {vistaActual === 'registro' && <Registro onIrALogin={() => setVistaActual('login')} />}
       </main>
 
     </div>
