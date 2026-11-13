@@ -13,9 +13,11 @@
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "bootstrap": "^5.3.8",
+    "lucide-react": "^1.70.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
+    "sonner": "^2.0.8",
     "three": "^0.187.0"
   },
   "devDependencies": {
