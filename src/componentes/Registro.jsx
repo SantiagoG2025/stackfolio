@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function Registro() {
+export default function Registro({ onRegistroSuccess }) {
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,6 +95,15 @@ export default function Registro() {
     setUsuarioGenerado(username);
     setError('');
     setRegistroExitoso(true);
+
+    if (onRegistroSuccess) {
+      onRegistroSuccess({
+        nombre: nombreCompleto.trim(),
+        username: username,
+        email: email.trim(),
+        rol: 'usuario',
+      });
+    }
   };
 
   const reiniciarRegistro = () => {
