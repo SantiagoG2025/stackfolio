@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import GatoHolografico from './GatoHolografico';
 import './Login.css';
 
-export default function Login() {
+export default function Login({onLoginSuccess}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
@@ -119,20 +118,35 @@ export default function Login() {
     setError('');
     setEstadoGato('feliz');
     setLoginExitoso(true);
+
+    const emailNormalizado = email.trim().toLowerCase();
+    const esAdmin = emailNormalizado === 'admin@stackfolio.com';
+
+    if (onLoginSuccess) {
+      onLoginSuccess({
+        nombre: esAdmin ? 'Administrador Stackfolio' : emailNormalizado.split('@')[0],
+        email: emailNormalizado,
+        rol: esAdmin ? 'admin' : 'usuario',
+      });
+    }
   };
 
   // =========================================
   // REINICIAR LOGIN
   // =========================================
 
-  const reiniciarLogin = () => {
-    setEmail('');
-    setPassword('');
-    setMostrarPassword(false);
-    setError('');
-    setLoginExitoso(false);
-    setEstadoGato('tranquilo');
-  };
+ const reiniciarLogin = () => {
+  setEmail('');
+  setPassword('');
+  setMostrarPassword(false);
+  setError('');
+  setLoginExitoso(false);
+  setEstadoGato('esperando');
+
+  if (onLoginSuccess) {
+    onLoginSuccess(null);
+  }
+};
 
   // =========================================
   // COLORES DINÁMICOS
