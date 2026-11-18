@@ -1,121 +1,197 @@
+
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Lock, Send, Mail, CheckCircle2, Clock, User, Eye, ExternalLink, X } from 'lucide-react';
+import {
+  Send,
+  Mail,
+  CheckCircle2,
+  Clock,
+  User,
+  Eye,
+  ExternalLink,
+  X,
+} from 'lucide-react';
 
-const CONSULTAS_INICIALES = [
-  {
-    id: 1,
-    fecha: '06/11/2026 - 10:15',
-    nombre: 'Juan Manuel Pérez',
-    email: 'juan.perez@techsolutions.com',
-    asunto: 'Desarrollo de plataforma web corporativa',
-    mensaje: 'Hola, nos interesó mucho su perfil técnico y proyectos en React. ¿Tienen disponibilidad para una reunión esta semana?',
-    respondido: false,
-  },
-  {
-    id: 2,
-    fecha: '06/11/2026 - 09:40',
-    nombre: 'Sofía Aldana',
-    email: 'sofia.aldana@empresa.com.ar',
-    asunto: 'Propuesta laboral Fullstack Junior/Semi-Senior',
-    mensaje: 'Buenas tardes, vimos su portafolio y nos gustaría invitarlos a un proceso de selección para nuestro equipo de desarrollo.',
-    respondido: false,
-  },
-  {
-    id: 3,
-    fecha: '05/11/2026 - 18:22',
-    nombre: 'Roberto Gómez',
-    email: 'rgomez.dev@gmail.com',
-    asunto: 'Consulta sobre arquitectura y base de datos',
-    mensaje: 'Excelente trabajo en los proyectos publicados. Quería consultar qué stack utilizan para el despliegue en producción.',
-    respondido: false,
-  },
-  {
-    id: 4,
-    fecha: '04/11/2026 - 14:05',
-    nombre: 'Mariana Castillo',
-    email: 'mcastillo_rrhh@globalit.com',
-    asunto: 'Contacto de Recursos Humanos - GlobalIT',
-    mensaje: 'Hola, guardamos su contacto en nuestra base de talentos IT para futuras búsquedas en Salta y modalidad remota.',
-    respondido: true,
-  },
-];
+const API_URL = 'http://localhost:5000';
 
-export function ConsultasForm({
-  usuarioActual = null,
-  isAdmin = false,
-  onIrALogin,
-}) {
-  const [consultas, setConsultas] = useState(() => {
-    try {
-      const guardadas = localStorage.getItem('stackfolio_consultas');
-      return guardadas ? JSON.parse(guardadas) : CONSULTAS_INICIALES;
-    } catch {
-      return CONSULTAS_INICIALES;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('stackfolio_consultas', JSON.stringify(consultas));
-  }, [consultas]);
-
+export function ConsultasForm({ usuarioActual = null, isAdmin = false }) {
+  const [consultas, setConsultas] = useState([]);
+  const [nombre, setNombre] = useState(usuarioActual?.nombre || '');
+  const [email, setEmail] = useState(usuarioActual?.email || '');
   const [asunto, setAsunto] = useState('');
   const [mensaje, setMensaje] = useState('');
-  const [filaSeleccionada, setFilaSeleccionada] = useState(2);
   const [consultaAbierta, setConsultaAbierta] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
+  const estaLogueado = Boolean(usuarioActual?.email);
   const esAdminActivo = isAdmin || usuarioActual?.rol === 'admin';
-  const estaLogueado = Boolean(usuarioActual && (usuarioActual.email || usuarioActual.nombre));
 
-  const obtenerFechaActual = () => {
-    const ahora = new Date();
-    const dia = String(ahora.getDate()).padStart(2, '0');
-    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-    const anio = ahora.getFullYear();
-    const horas = String(ahora.getHours()).padStart(2, '0');
-    const mins = String(ahora.getMinutes()).padStart(2, '0');
-    return `${dia}/${mes}/${anio} - ${horas}:${mins}`;
+  useEffect(() => {
+    setNombre(usuarioActual?.nombre || '');
+    setEmail(usuarioActual?.email || '');
+  }, [usuarioActual]);
+
+  const obtenerTokenCSRF = async () => {
+    const respuesta = await fetch(`${API_URL}/api/auth/csrf`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    const datos = await respuesta.json();
+
+    if (!respuesta.ok || !datos.csrf_token) {
+      throw new Error('No se pudo obtener el token de seguridad.');
+    }
+
+    return datos.csrf_token;
   };
 
-  const handleEnviarConsulta = (e) => {
+  const cargarConsultas = async () => {
+    setCargando(true);
+
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(datos.error || 'No se pudieron cargar las consultas.');
+      }
+
+      setConsultas(datos.consultas || []);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (esAdminActivo) {
+      cargarConsultas();
+    }
+  }, [esAdminActivo]);
+
+  const handleEnviarConsulta = async (e) => {
     e.preventDefault();
-    if (!mensaje.trim()) {
-      toast.error('Por favor escribí el detalle de tu consulta antes de enviar.');
+
+    if (!estaLogueado && (!nombre.trim() || !email.trim())) {
+      toast.error('Completá tu nombre y correo electrónico.');
       return;
     }
 
-    const nuevaConsulta = {
-      id: Date.now(),
-      fecha: obtenerFechaActual(),
-      nombre: usuarioActual.nombre || usuarioActual.username || 'Usuario Registrado',
-      email: usuarioActual.email,
-      asunto: asunto.trim() || 'Consulta general desde Portafolio',
-      mensaje: mensaje.trim(),
-      respondido: false,
-    };
-
-    setConsultas([nuevaConsulta, ...consultas]);
-    setAsunto('');
-    setMensaje('');
-    toast.success('¡Consulta enviada con éxito! Ya figura en la bandeja del administrador.');
-  };
-
-  const marcarComoRespondido = (id) => {
-    setConsultas((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, respondido: !c.respondido } : c))
-    );
-    if (consultaAbierta && consultaAbierta.id === id) {
-      setConsultaAbierta((prev) => ({ ...prev, respondido: !prev.respondido }));
+    if (!mensaje.trim()) {
+      toast.error('Escribí el detalle de tu consulta.');
+      return;
     }
-    toast.info('Estado del mensaje actualizado.');
+
+    setEnviando(true);
+
+    try {
+      const token = await obtenerTokenCSRF();
+
+      const respuesta = await fetch(`${API_URL}/api/contacto`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': token,
+        },
+        body: JSON.stringify({
+          nombre: nombre.trim(),
+          email: email.trim(),
+          asunto: asunto.trim(),
+          mensaje: mensaje.trim(),
+        }),
+      });
+
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(datos.error || 'No se pudo enviar la consulta.');
+      }
+
+      toast.success('¡Consulta enviada correctamente!');
+
+      setAsunto('');
+      setMensaje('');
+
+      if (esAdminActivo) {
+        await cargarConsultas();
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setEnviando(false);
+    }
   };
 
-  // VISTA ADMINISTRADOR: BANDEJA DE CONSULTAS RECIBIDAS
+  const marcarComoRespondido = async (consulta) => {
+    try {
+      const token = await obtenerTokenCSRF();
+
+      const respuesta = await fetch(
+        `${API_URL}/api/contacto/${consulta.id}`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+          },
+          body: JSON.stringify({
+            respondido: !consulta.respondido,
+          }),
+        }
+      );
+
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(datos.error || 'No se pudo actualizar el estado.');
+      }
+
+      const consultaActualizada = {
+        ...consulta,
+        respondido: !consulta.respondido,
+      };
+
+      setConsultas((prev) =>
+        prev.map((item) =>
+          item.id === consulta.id ? consultaActualizada : item
+        )
+      );
+
+      if (consultaAbierta?.id === consulta.id) {
+        setConsultaAbierta(consultaActualizada);
+      }
+
+      toast.success('Estado de la consulta actualizado.');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  // --------------------------------------------------
+  // VISTA ADMINISTRADOR
+  // --------------------------------------------------
+
   if (esAdminActivo) {
     const sinResponder = consultas.filter((c) => !c.respondido).length;
 
     return (
-      <section id="consultas" style={{ maxWidth: '1050px', margin: '40px auto', padding: '0 20px' }}>
+      <section
+        id="consultas"
+        style={{
+          maxWidth: '1050px',
+          margin: '40px auto',
+          padding: '0 20px',
+        }}
+      >
         <div
           style={{
             backgroundColor: '#0b1526',
@@ -136,82 +212,146 @@ export function ConsultasForm({
             }}
           >
             <div>
-              <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#F8FAFC', margin: 0 }}>
+              <h2
+                style={{
+                  fontSize: '28px',
+                  fontWeight: '700',
+                  color: '#F8FAFC',
+                  margin: 0,
+                }}
+              >
                 Bandeja de Consultas Recibidas
               </h2>
-              <p style={{ color: '#94A3B8', fontSize: '15px', margin: '6px 0 0 0' }}>
-                Consultas enviadas a través del formulario de contacto.
+
+              <p
+                style={{
+                  color: '#94A3B8',
+                  fontSize: '15px',
+                  margin: '6px 0 0',
+                }}
+              >
+                Consultas recibidas a través del formulario de contacto.
               </p>
             </div>
 
             <div
               style={{
                 color: '#E2E8F0',
-                fontSize: '15px',
-                fontWeight: '500',
                 backgroundColor: 'rgba(0, 243, 255, 0.08)',
                 border: '1px solid rgba(0, 243, 255, 0.3)',
                 padding: '8px 16px',
                 borderRadius: '8px',
               }}
             >
-              <strong style={{ color: '#00f3ff' }}>{sinResponder}</strong>{' '}
-              {sinResponder === 1 ? 'Mensaje sin responder' : 'Mensajes sin responder'}
+              <strong style={{ color: '#00f3ff' }}>
+                {sinResponder}
+              </strong>{' '}
+              {sinResponder === 1
+                ? 'Mensaje sin responder'
+                : 'Mensajes sin responder'}
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', color: '#94A3B8', fontSize: '12px', letterSpacing: '1px' }}>
-                  <th style={{ padding: '12px 18px', fontWeight: '600' }}>FECHA</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '600' }}>NOMBRE DEL CONTACTO</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '600' }}>CORREO ELECTRÓNICO (GMAIL)</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>ACCIÓN</th>
-                </tr>
-              </thead>
-              <tbody>
-                {consultas.map((item) => {
-                  const activa = filaSeleccionada === item.id;
-                  return (
+          {cargando ? (
+            <p style={{ color: '#94A3B8' }}>Cargando consultas...</p>
+          ) : consultas.length === 0 ? (
+            <p style={{ color: '#94A3B8' }}>
+              Todavía no se recibieron consultas.
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'separate',
+                  borderSpacing: '0 8px',
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      textAlign: 'left',
+                      color: '#94A3B8',
+                      fontSize: '12px',
+                      letterSpacing: '1px',
+                    }}
+                  >
+                    <th style={{ padding: '12px 18px' }}>FECHA</th>
+                    <th style={{ padding: '12px 18px' }}>CONTACTO</th>
+                    <th style={{ padding: '12px 18px' }}>CORREO ELECTRÓNICO</th>
+                    <th style={{ padding: '12px 18px', textAlign: 'right' }}>
+                      ACCIÓN
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {consultas.map((item) => (
                     <tr
                       key={item.id}
-                      onMouseEnter={() => setFilaSeleccionada(item.id)}
                       onClick={() => setConsultaAbierta(item)}
                       style={{
-                        backgroundColor: activa ? 'rgba(0, 243, 255, 0.10)' : 'rgba(15, 23, 42, 0.65)',
-                        boxShadow: activa
-                          ? 'inset 0 0 0 1.5px #00f3ff, 0 0 18px rgba(0, 243, 255, 0.25)'
-                          : 'inset 0 0 0 1px rgba(148, 163, 184, 0.12)',
-                        borderRadius: '8px',
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s ease',
                       }}
                     >
-                      <td style={{ padding: '16px 18px', color: '#CBD5E1', fontSize: '14px', borderTopLeftRadius: '8px', borderBottomLeftRadius: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {!item.respondido && (
-                            <span
-                              title="Sin responder"
-                              style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#00f3ff', display: 'inline-block' }}
-                            />
-                          )}
-                          {item.fecha}
-                        </div>
+                      <td
+                        style={{
+                          padding: '16px 18px',
+                          color: '#CBD5E1',
+                          fontSize: '14px',
+                        }}
+                      >
+                        {!item.respondido && (
+                          <span
+                            title="Sin responder"
+                            style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: '#00f3ff',
+                              display: 'inline-block',
+                              marginRight: '8px',
+                            }}
+                          />
+                        )}
+                        {item.fecha}
                       </td>
 
-                      <td style={{ padding: '16px 18px', color: '#F8FAFC', fontWeight: '500', fontSize: '15px' }}>
+                      <td
+                        style={{
+                          padding: '16px 18px',
+                          color: '#F8FAFC',
+                          fontWeight: '500',
+                        }}
+                      >
                         {item.nombre}
                       </td>
 
-                      <td style={{ padding: '16px 18px', color: '#38BDF8', fontSize: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Mail size={16} color="#38BDF8" />
-                          <span>{item.email}</span>
-                        </div>
+                      <td
+                        style={{
+                          padding: '16px 18px',
+                          color: '#38BDF8',
+                          fontSize: '14px',
+                        }}
+                      >
+                        <Mail
+                          size={16}
+                          style={{
+                            display: 'inline',
+                            verticalAlign: 'middle',
+                            marginRight: '8px',
+                          }}
+                        />
+                        {item.email}
                       </td>
 
-                      <td style={{ padding: '16px 18px', textAlign: 'right', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}>
+                      <td
+                        style={{
+                          padding: '16px 18px',
+                          textAlign: 'right',
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -224,22 +364,18 @@ export function ConsultasForm({
                             color: '#00f3ff',
                             padding: '6px 12px',
                             borderRadius: '6px',
-                            fontSize: '13px',
                             cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
                           }}
                         >
                           <Eye size={14} /> Ver mensaje
                         </button>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {consultaAbierta && (
             <div
@@ -251,21 +387,58 @@ export function ConsultasForm({
                 padding: '22px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
                 <div>
-                  <span style={{ fontSize: '12px', color: '#00f3ff', fontFamily: 'monospace' }}>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      color: '#00f3ff',
+                      fontFamily: 'monospace',
+                    }}
+                  >
                     RECIBIDO EL {consultaAbierta.fecha}
                   </span>
-                  <h3 style={{ margin: '4px 0', color: '#F8FAFC', fontSize: '19px' }}>
+
+                  <h3
+                    style={{
+                      margin: '4px 0',
+                      color: '#F8FAFC',
+                      fontSize: '19px',
+                    }}
+                  >
                     {consultaAbierta.asunto}
                   </h3>
-                  <p style={{ margin: 0, color: '#94A3B8', fontSize: '14px' }}>
-                    De: <strong style={{ color: '#E2E8F0' }}>{consultaAbierta.nombre}</strong> ({consultaAbierta.email})
+
+                  <p
+                    style={{
+                      margin: 0,
+                      color: '#94A3B8',
+                      fontSize: '14px',
+                    }}
+                  >
+                    De:{' '}
+                    <strong style={{ color: '#E2E8F0' }}>
+                      {consultaAbierta.nombre}
+                    </strong>{' '}
+                    ({consultaAbierta.email})
                   </p>
                 </div>
+
                 <button
+                  type="button"
                   onClick={() => setConsultaAbierta(null)}
-                  style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                  }}
                 >
                   <X size={20} />
                 </button>
@@ -280,15 +453,24 @@ export function ConsultasForm({
                   color: '#E2E8F0',
                   lineHeight: '1.6',
                   fontSize: '14px',
+                  whiteSpace: 'pre-wrap',
                 }}
               >
                 {consultaAbierta.mensaje}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  marginTop: '16px',
+                  flexWrap: 'wrap',
+                }}
+              >
                 <button
                   type="button"
-                  onClick={() => marcarComoRespondido(consultaAbierta.id)}
+                  onClick={() => marcarComoRespondido(consultaAbierta)}
                   style={{
                     backgroundColor: 'transparent',
                     border: '1px solid #10B981',
@@ -299,20 +481,22 @@ export function ConsultasForm({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    fontWeight: '600',
                   }}
                 >
                   <CheckCircle2 size={16} />
-                  {consultaAbierta.respondido ? 'Marcar como pendiente' : 'Marcar como respondido'}
+                  {consultaAbierta.respondido
+                    ? 'Marcar como pendiente'
+                    : 'Marcar como respondido'}
                 </button>
 
                 <a
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(consultaAbierta.email)}&su=${encodeURIComponent('Re: ' + consultaAbierta.asunto)}`}
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                    consultaAbierta.email
+                  )}&su=${encodeURIComponent(
+                    'Re: ' + consultaAbierta.asunto
+                  )}`}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => {
-                    if (!consultaAbierta.respondido) marcarComoRespondido(consultaAbierta.id);
-                  }}
                   style={{
                     backgroundColor: '#00f3ff',
                     color: '#030a16',
@@ -335,9 +519,19 @@ export function ConsultasForm({
     );
   }
 
-  // VISTA VISITANTE SIN SESIÓN vs USUARIO LOGUEADO REAL
+  // --------------------------------------------------
+  // FORMULARIO PÚBLICO: VISITANTE O USUARIO
+  // --------------------------------------------------
+
   return (
-    <section id="consultas" style={{ maxWidth: '750px', margin: '50px auto', padding: '0 20px' }}>
+    <section
+      id="consultas"
+      style={{
+        maxWidth: '750px',
+        margin: '50px auto',
+        padding: '0 20px',
+      }}
+    >
       <div
         style={{
           backgroundColor: '#0b1526',
@@ -348,192 +542,256 @@ export function ConsultasForm({
         }}
       >
         <div style={{ marginBottom: '24px' }}>
-          <span style={{ color: '#00f3ff', fontFamily: 'monospace', fontSize: '13px', letterSpacing: '1px' }}>
+          <span
+            style={{
+              color: '#00f3ff',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              letterSpacing: '1px',
+            }}
+          >
             // CONTACTO DIRECTO
           </span>
-          <h2 style={{ fontSize: '26px', color: '#F8FAFC', margin: '6px 0' }}>
+
+          <h2
+            style={{
+              fontSize: '26px',
+              color: '#F8FAFC',
+              margin: '6px 0',
+            }}
+          >
             Enviar una Consulta
           </h2>
-          <p style={{ color: '#94A3B8', fontSize: '14px', margin: 0 }}>
-            ¿Tenés una propuesta laboral o proyecto en mente? Escribinos directamente desde tu cuenta.
+
+          <p
+            style={{
+              color: '#94A3B8',
+              fontSize: '14px',
+              margin: 0,
+            }}
+          >
+            ¿Tenés una propuesta laboral o proyecto en mente? Escribinos
+            directamente. No necesitás registrarte para contactarnos.
           </p>
         </div>
 
-        {!estaLogueado ? (
+        <form
+          onSubmit={handleEnviarConsulta}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px',
+          }}
+        >
           <div
             style={{
-              textAlign: 'center',
-              padding: '36px 20px',
-              backgroundColor: 'rgba(15, 23, 42, 0.8)',
-              border: '1px dashed rgba(0, 243, 255, 0.35)',
-              borderRadius: '10px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px',
             }}
           >
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(0, 243, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 14px auto',
-              }}
-            >
-              <Lock size={24} color="#00f3ff" />
-            </div>
-            <h3 style={{ color: '#F8FAFC', fontSize: '18px', margin: '0 0 8px 0' }}>
-              Iniciá sesión para enviar consultas
-            </h3>
-            <p style={{ color: '#94A3B8', fontSize: '14px', maxWidth: '420px', margin: '0 auto 20px auto' }}>
-              Para evitar spam y responderte directamente a tu correo verificado, necesitás ingresar con tu cuenta de usuario.
-            </p>
-            {onIrALogin && (
-              <button
-                type="button"
-                onClick={onIrALogin}
+            <div>
+              <label
                 style={{
-                  backgroundColor: '#00f3ff',
-                  color: '#030a16',
-                  border: 'none',
-                  padding: '10px 22px',
-                  borderRadius: '6px',
-                  fontWeight: '700',
-                  fontFamily: 'monospace',
-                  cursor: 'pointer',
+                  display: 'block',
+                  color: '#94A3B8',
+                  fontSize: '13px',
+                  marginBottom: '6px',
                 }}
               >
-                [ IR A INICIAR SESIÓN ]
-              </button>
-            )}
-          </div>
-        ) : (
-          <form onSubmit={handleEnviarConsulta} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                gap: '16px',
-              }}
-            >
-              <div>
-                <label style={{ display: 'block', color: '#94A3B8', fontSize: '13px', marginBottom: '6px' }}>
-                  Usuario conectado
-                </label>
-                <div
+                {estaLogueado ? 'Usuario conectado' : 'Tu nombre *'}
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid rgba(0, 243, 255, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                }}
+              >
+                <User size={16} color="#00f3ff" />
+
+                <input
+                  type="text"
+                  required
+                  maxLength={100}
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  readOnly={estaLogueado}
+                  placeholder="Ingresá tu nombre"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    backgroundColor: '#0f172a',
-                    border: '1px solid rgba(0, 243, 255, 0.3)',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
                     color: '#F8FAFC',
                     fontSize: '14px',
                   }}
-                >
-                  <User size={16} color="#00f3ff" />
-                  <span>{usuarioActual.nombre || usuarioActual.username}</span>
-                </div>
+                />
               </div>
+            </div>
 
-              <div>
-                <label style={{ display: 'block', color: '#94A3B8', fontSize: '13px', marginBottom: '6px' }}>
-                  Correo electrónico de respuesta
-                </label>
-                <div
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: '#94A3B8',
+                  fontSize: '13px',
+                  marginBottom: '6px',
+                }}
+              >
+                Correo electrónico *
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid rgba(0, 243, 255, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                }}
+              >
+                <Mail size={16} color="#00f3ff" />
+
+                <input
+                  type="email"
+                  required
+                  maxLength={100}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  readOnly={estaLogueado}
+                  placeholder="tu correo electrónico"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    backgroundColor: '#0f172a',
-                    border: '1px solid rgba(0, 243, 255, 0.3)',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
                     color: '#38BDF8',
                     fontSize: '14px',
                   }}
-                >
-                  <Mail size={16} color="#00f3ff" />
-                  <span>{usuarioActual.email}</span>
-                </div>
+                />
               </div>
             </div>
+          </div>
 
-            <div>
-              <label style={{ display: 'block', color: '#CBD5E1', fontSize: '13px', marginBottom: '6px' }}>
-                Asunto
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Propuesta de proyecto web / Entrevista técnica"
-                value={asunto}
-                onChange={(e) => setAsunto(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#070f1d',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: '8px',
-                  padding: '11px 14px',
-                  color: '#F8FAFC',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-            </div>
+          <div>
+            <label
+              style={{
+                display: 'block',
+                color: '#CBD5E1',
+                fontSize: '13px',
+                marginBottom: '6px',
+              }}
+            >
+              Asunto
+            </label>
 
-            <div>
-              <label style={{ display: 'block', color: '#CBD5E1', fontSize: '13px', marginBottom: '6px' }}>
-                Mensaje *
-              </label>
-              <textarea
-                rows="4"
-                required
-                placeholder="Contanos los detalles de tu consulta o propuesta..."
-                value={mensaje}
-                onChange={(e) => setMensaje(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#070f1d',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: '8px',
-                  padding: '12px 14px',
-                  color: '#F8FAFC',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <input
+              type="text"
+              maxLength={200}
+              placeholder="Ej: Propuesta de proyecto web / Entrevista técnica"
+              value={asunto}
+              onChange={(e) => setAsunto(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                backgroundColor: '#070f1d',
+                border: '1px solid rgba(148, 163, 184, 0.3)',
+                borderRadius: '8px',
+                padding: '11px 14px',
+                color: '#F8FAFC',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+          </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <span style={{ color: '#64748B', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={14} /> Tiempo estimado de respuesta: menos de 24 hs
-              </span>
+          <div>
+            <label
+              style={{
+                display: 'block',
+                color: '#CBD5E1',
+                fontSize: '13px',
+                marginBottom: '6px',
+              }}
+            >
+              Mensaje *
+            </label>
 
-              <button
-                type="submit"
-                style={{
-                  backgroundColor: '#00f3ff',
-                  color: '#030a16',
-                  border: 'none',
-                  padding: '11px 24px',
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <Send size={16} /> Enviar Consulta
-              </button>
-            </div>
-          </form>
-        )}
+            <textarea
+              rows="4"
+              required
+              maxLength={5000}
+              placeholder="Contanos los detalles de tu consulta o propuesta..."
+              value={mensaje}
+              onChange={(e) => setMensaje(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                backgroundColor: '#070f1d',
+                border: '1px solid rgba(148, 163, 184, 0.3)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                color: '#F8FAFC',
+                fontSize: '14px',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <span
+              style={{
+                color: '#64748B',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Clock size={14} />
+              Tiempo estimado de respuesta: menos de 24 hs
+            </span>
+
+            <button
+              type="submit"
+              disabled={enviando}
+              style={{
+                backgroundColor: '#00f3ff',
+                color: '#030a16',
+                border: 'none',
+                padding: '11px 24px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '14px',
+                cursor: enviando ? 'wait' : 'pointer',
+                opacity: enviando ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Send size={16} />
+              {enviando ? 'Enviando...' : 'Enviar Consulta'}
+            </button>
+          </div>
+        </form>
       </div>
     </section>
   );

@@ -1,19 +1,61 @@
-import React, { useState } from 'react';
-import { Toaster } from 'sonner';
+
+import React, { useState, useEffect } from 'react';
+import { Toaster, toast } from 'sonner';
 
 import Login from './componentes/Login';
 import Registro from './componentes/Registro';
 import Projects from './componentes/Projects';
 import { AptitudesAcademicas } from './componentes/AptitudesAcademicas';
 import { ConsultasForm } from './componentes/ConsultasForm';
+import PerfilPublico from './componentes/PerfilPublico';
+
+const API_URL = 'http://localhost:5000';
 
 export default function App() {
   // Estado de navegación y autenticación
   const [vistaActual, setVistaActual] = useState('portafolio');
   const [usuarioLogueado, setUsuarioLogueado] = useState(null);
 
+  // Estados auxiliares
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+
   // Verificamos si el usuario tiene rol de administrador
   const esAdmin = usuarioLogueado?.rol === 'admin';
+
+  // Recuperar la sesión al cargar o recargar la aplicación
+  useEffect(() => {
+    const verificarSesion = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/auth/session`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (respuesta.ok) {
+          const resultado = await respuesta.json();
+
+          if (resultado.autenticado && resultado.usuario) {
+            setUsuarioLogueado(resultado.usuario);
+          } else {
+            setUsuarioLogueado(null);
+          }
+        } else if (respuesta.status === 401) {
+          // No existe una sesión autenticada
+          setUsuarioLogueado(null);
+        } else {
+          console.error('Error al verificar la sesión:', respuesta.status);
+        }
+
+      } catch (error) {
+        console.error('No se pudo conectar con el backend:', error);
+      } finally {
+        setVerificandoSesion(false);
+      }
+    };
+
+    verificarSesion();
+  }, []);
 
   // Recibimos los datos del usuario al iniciar o cerrar sesión
   const manejarAutenticacion = (datosUsuario) => {
@@ -24,10 +66,60 @@ export default function App() {
     }
   };
 
-  // Cerramos la sesión del usuario
-  const cerrarSesion = () => {
-    setUsuarioLogueado(null);
-    setVistaActual('portafolio');
+  // Registrar un usuario y enviarlo al Login
+  const manejarRegistroExitoso = () => {
+    toast.success('¡Registro completado correctamente!');
+    setVistaActual('login');
+  };
+
+  // Cerrar sesión en el servidor y en React
+  const cerrarSesion = async () => {
+    if (cerrandoSesion) return;
+
+    try {
+      setCerrandoSesion(true);
+
+      // Obtener el token CSRF de la sesión actual
+      const respuestaCSRF = await fetch(`${API_URL}/api/auth/csrf`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      const datosCSRF = await respuestaCSRF.json();
+
+      if (!respuestaCSRF.ok || !datosCSRF.csrf_token) {
+        throw new Error('No se pudo obtener el token de seguridad.');
+      }
+
+      // Solicitar al backend que destruya la sesión
+      const respuestaLogout = await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': datosCSRF.csrf_token
+        }
+      });
+
+      const resultado = await respuestaLogout.json();
+
+      if (!respuestaLogout.ok) {
+        throw new Error(resultado.error || 'No se pudo cerrar la sesión.');
+      }
+
+      // Limpiar el estado local únicamente después del cierre en el servidor
+      setUsuarioLogueado(null);
+      setVistaActual('portafolio');
+
+      toast.success('Sesión cerrada correctamente.');
+
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      toast.error(error.message || 'No se pudo cerrar la sesión.');
+
+    } finally {
+      setCerrandoSesion(false);
+    }
   };
 
   return (
@@ -89,7 +181,7 @@ export default function App() {
           </button>
 
           {/* Login y registro solo para visitantes */}
-          {!usuarioLogueado && (
+          {!usuarioLogueado && !verificandoSesion && (
             <>
               <button
                 onClick={() => setVistaActual('login')}
@@ -142,19 +234,27 @@ export default function App() {
 
               <button
                 onClick={cerrarSesion}
+                disabled={cerrandoSesion}
                 style={{
                   background: 'rgba(255, 102, 139, 0.15)',
                   color: '#ff668b',
                   border: '1px solid #ff668b',
                   padding: '8px 14px',
-                  cursor: 'pointer',
+                  cursor: cerrandoSesion ? 'not-allowed' : 'pointer',
                   fontWeight: 'bold',
                   borderRadius: '4px',
+                  opacity: cerrandoSesion ? 0.6 : 1,
                 }}
               >
-                Cerrar sesión
+                {cerrandoSesion ? 'Cerrando...' : 'Cerrar sesión'}
               </button>
             </div>
+          )}
+
+          {verificandoSesion && (
+            <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+              Verificando sesión...
+            </span>
           )}
         </div>
       </nav>
@@ -162,10 +262,13 @@ export default function App() {
       {/* CONTENIDO PRINCIPAL */}
       <main>
         {vistaActual === 'portafolio' && (
-          <>
+          <>            
             <Projects isAdmin={esAdmin} />
 
             <AptitudesAcademicas defaultIsAdmin={esAdmin} />
+
+            <PerfilPublico />
+
 
             <ConsultasForm
               usuarioActual={usuarioLogueado}
@@ -175,16 +278,16 @@ export default function App() {
           </>
         )}
 
-        {vistaActual === 'login' && (
+        {vistaActual === 'login' && !usuarioLogueado && (
           <Login
             onLoginSuccess={manejarAutenticacion}
             onIrARegistro={() => setVistaActual('registro')}
           />
         )}
 
-        {vistaActual === 'registro' && (
+        {vistaActual === 'registro' && !usuarioLogueado && (
           <Registro
-            onRegistroSuccess={manejarAutenticacion}
+            onRegistroSuccess={manejarRegistroExitoso}
             onIrALogin={() => setVistaActual('login')}
           />
         )}

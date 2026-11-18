@@ -1,18 +1,55 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import GatoHolografico from './GatoHolografico';
 import './Login.css';
 
-export default function Login({onLoginSuccess}) {
+export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const [csrfToken, setCsrfToken] = useState('');
 
   // Estados del HoloCat
   const [estadoGato, setEstadoGato] = useState('tranquilo');
   const [loginExitoso, setLoginExitoso] = useState(false);
 
   const canvasRef = useRef(null);
+
+  // =========================================
+  // OBTENER TOKEN CSRF
+  // =========================================
+
+  useEffect(() => {
+    const obtenerTokenCSRF = async () => {
+      try {
+        const respuesta = await fetch(
+          'http://localhost:5000/api/auth/csrf',
+          {
+            method: 'GET',
+            credentials: 'include'
+          }
+        );
+
+        const data = await respuesta.json();
+
+        if (!respuesta.ok) {
+          throw new Error(
+            data.error || 'No se pudo obtener el token CSRF.'
+          );
+        }
+
+        setCsrfToken(data.csrf_token);
+
+      } catch (error) {
+        console.error('Error al obtener CSRF:', error);
+        setError('ERROR: No se pudo preparar la autenticación.');
+      }
+    };
+
+    obtenerTokenCSRF();
+  }, []);
 
   // =========================================
   // FONDO MATRIX ORIGINAL
@@ -88,11 +125,13 @@ export default function Login({onLoginSuccess}) {
   };
 
   // =========================================
-  // VALIDACIÓN DEL LOGIN
+  // VALIDACIÓN Y AUTENTICACIÓN DEL LOGIN
   // =========================================
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+
+    if (cargando) return;
 
     if (!email.trim() || !password) {
       setError('ERROR: Todos los campos son obligatorios.');
@@ -114,39 +153,116 @@ export default function Login({onLoginSuccess}) {
       return;
     }
 
-    // ACCESO CORRECTO
-    setError('');
-    setEstadoGato('feliz');
-    setLoginExitoso(true);
+    if (!csrfToken) {
+      setError('ERROR: El token de seguridad todavía no está disponible.');
+      setEstadoGato('enojado');
+      return;
+    }
 
-    const emailNormalizado = email.trim().toLowerCase();
-    const esAdmin = emailNormalizado === 'admin@stackfolio.com';
+    try {
+      setCargando(true);
+      setError('');
 
-    if (onLoginSuccess) {
-      onLoginSuccess({
-        nombre: esAdmin ? 'Administrador Stackfolio' : emailNormalizado.split('@')[0],
-        email: emailNormalizado,
-        rol: esAdmin ? 'admin' : 'usuario',
-      });
+      const respuesta = await fetch(
+        'http://localhost:5000/api/auth/login',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+            password: password
+          })
+        }
+      );
+
+      const data = await respuesta.json();
+
+      if (!respuesta.ok) {
+        setError(data.error || 'Error al iniciar sesión.');
+        setEstadoGato('enojado');
+        return;
+      }
+
+      // ACCESO CORRECTO
+      setEstadoGato('feliz');
+      setLoginExitoso(true);
+
+      // Guardar el nuevo token CSRF
+      setCsrfToken(data.csrf_token);
+
+      // Informar a App.jsx que el usuario inició sesión
+      if (onLoginSuccess) {
+        onLoginSuccess(data.usuario);
+      }
+
+    } catch (error) {
+      console.error('Error en el login:', error);
+
+      setError('ERROR: No se pudo conectar con el servidor.');
+      setEstadoGato('enojado');
+
+    } finally {
+      setCargando(false);
     }
   };
 
   // =========================================
-  // REINICIAR LOGIN
+  // CERRAR SESIÓN REAL
   // =========================================
 
- const reiniciarLogin = () => {
-  setEmail('');
-  setPassword('');
-  setMostrarPassword(false);
-  setError('');
-  setLoginExitoso(false);
-  setEstadoGato('esperando');
+  const reiniciarLogin = async () => {
+    if (!csrfToken) {
+      setError('ERROR: No se encuentra el token de seguridad.');
+      return;
+    }
 
-  if (onLoginSuccess) {
-    onLoginSuccess(null);
-  }
-};
+    try {
+      setCargando(true);
+      setError('');
+
+      const respuesta = await fetch(
+        'http://localhost:5000/api/auth/logout',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'X-CSRF-Token': csrfToken
+          }
+        }
+      );
+
+      const data = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(
+          data.error || 'No se pudo cerrar la sesión.'
+        );
+      }
+
+      // Limpiar el estado local
+      setEmail('');
+      setPassword('');
+      setMostrarPassword(false);
+      setLoginExitoso(false);
+      setEstadoGato('esperando');
+      setCsrfToken('');
+
+      if (onLoginSuccess) {
+        onLoginSuccess(null);
+      }
+
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      setError(error.message);
+
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // =========================================
   // COLORES DINÁMICOS
@@ -189,10 +305,7 @@ export default function Login({onLoginSuccess}) {
       {/* CONTENIDO PRINCIPAL */}
       <div className="login-layout">
 
-        {/* =================================
-            PANEL DEL HOLOCAT
-        ================================= */}
-
+        {/* PANEL DEL HOLOCAT */}
         <section className="login-mascot-panel">
 
           <div className="login-heading">
@@ -224,10 +337,7 @@ export default function Login({onLoginSuccess}) {
 
         </section>
 
-        {/* =================================
-            PANEL DEL LOGIN
-        ================================= */}
-
+        {/* PANEL DEL LOGIN */}
         <section className="login-form-panel">
 
           {loginExitoso ? (
@@ -251,8 +361,9 @@ export default function Login({onLoginSuccess}) {
                 type="button"
                 onClick={reiniciarLogin}
                 className="login-submit success-button"
+                disabled={cargando}
               >
-                CERRAR SESIÓN
+                {cargando ? 'CERRANDO SESIÓN...' : 'CERRAR SESIÓN'}
               </button>
 
             </div>
@@ -305,6 +416,7 @@ export default function Login({onLoginSuccess}) {
                       value={email}
                       onChange={manejarCambio(setEmail)}
                       autoComplete="username"
+                      disabled={cargando}
                     />
 
                   </div>
@@ -327,6 +439,7 @@ export default function Login({onLoginSuccess}) {
                       value={password}
                       onChange={manejarCambio(setPassword)}
                       autoComplete="current-password"
+                      disabled={cargando}
                     />
 
                     {/* MOSTRAR / OCULTAR */}
@@ -340,6 +453,7 @@ export default function Login({onLoginSuccess}) {
                           : 'Mostrar contraseña'
                       }
                       onClick={() => setMostrarPassword(!mostrarPassword)}
+                      disabled={cargando}
                     >
 
                       {mostrarPassword ? (
@@ -394,8 +508,15 @@ export default function Login({onLoginSuccess}) {
                 <button
                   type="submit"
                   className="login-submit"
+                  disabled={cargando || !csrfToken}
                 >
-                  <span>EXECUTE_LOGIN</span>
+                  <span>
+                    {cargando
+                      ? 'AUTHENTICATING...'
+                      : !csrfToken
+                      ? 'PREPARING SECURITY...'
+                      : 'EXECUTE_LOGIN'}
+                  </span>
                   <span className="button-arrow">→</span>
                 </button>
 
@@ -416,3 +537,4 @@ export default function Login({onLoginSuccess}) {
     </section>
   );
 }
+
