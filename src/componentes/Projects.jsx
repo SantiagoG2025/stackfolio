@@ -5,7 +5,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
   const [categoriaActiva, setCategoriaActiva] = useState('todos');
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
 
-  // Estados de administración
+  // Estados exclusivos de administrador
   const [mostrarCrearArriba, setMostrarCrearArriba] = useState(false);
   const [proyectoEditandoId, setProyectoEditandoId] = useState(null);
   const editorInferiorRef = useRef(null);
@@ -27,9 +27,9 @@ export default function Projects({ usuarioActual, onIrALogin }) {
   const estaLogueado = Boolean(usuarioActual);
   const esAdmin = usuarioActual?.rol === 'admin';
 
-  const proyectosBase = [
+  const proyectosIniciales = [
     {
-      id: 1,
+      id: 'stackfolio',
       titulo: 'STACKFOLIO // CYBER AUTH',
       categoria: 'frontend',
       tagline: 'Sistema de autenticación y portafolio modular neón.',
@@ -42,7 +42,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: true
     },
     {
-      id: 2,
+      id: 'saltavet',
       titulo: 'SGA-SALTAVET',
       categoria: 'fullstack',
       tagline: 'Plataforma de gestión y telemetría administrativa.',
@@ -55,7 +55,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: true
     },
     {
-      id: 3,
+      id: 'matrix-engine',
       titulo: 'NEON CANVAS ENGINE',
       categoria: 'engine',
       tagline: 'Motor de renderizado visual de lluvia digital.',
@@ -68,7 +68,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 4,
+      id: 'parcial-l4',
       titulo: 'PARCIAL L4 // VALIDATOR',
       categoria: 'frontend',
       tagline: 'Módulo de registro con restricciones de alta seguridad.',
@@ -81,7 +81,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 5,
+      id: 'calculus-viz',
       titulo: 'ADVANCED CALCULUS VIZ',
       categoria: 'engine',
       tagline: 'Visualizador matemático para cálculo avanzado.',
@@ -94,7 +94,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 6,
+      id: 'trail-tracker',
       titulo: 'SPORTS & METRICS DASHBOARD',
       categoria: 'fullstack',
       tagline: 'Telemetría de rendimiento físico y carreras 42K.',
@@ -109,68 +109,46 @@ export default function Projects({ usuarioActual, onIrALogin }) {
   ];
 
   const [proyectos, setProyectos] = useState(() => {
-    const guardados = localStorage.getItem('stackfolio_proyectos');
-    return guardados ? JSON.parse(guardados) : proyectosBase;
+    const guardados = localStorage.getItem('stackfolio_proyectos_v2');
+    return guardados ? JSON.parse(guardados) : proyectosIniciales;
   });
 
   useEffect(() => {
-    localStorage.setItem('stackfolio_proyectos', JSON.stringify(proyectos));
+    localStorage.setItem('stackfolio_proyectos_v2', JSON.stringify(proyectos));
   }, [proyectos]);
-
-  useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/proyectos', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const mapeados = data.map((p, i) => ({
-            id: p.id_proyecto || i + 1,
-            titulo: p.titulo,
-            categoria: p.categoria || 'fullstack',
-            tagline: p.tagline || 'Módulo conectado a SQL Server',
-            descripcion: p.descripcion,
-            tech: p.tecnologias ? p.tecnologias.split(',').map((t) => t.trim()) : ['React', 'SQL Server'],
-            metricas: { Base_Datos: 'SQL Server', Estado: 'Sincronizado', Rol: 'Protegido' },
-            detalles: p.descripcion,
-            repoUrl: p.url_repositorio || 'https://github.com/SantiagoG2025/stackfolio',
-            demoUrl: p.url_demo || 'https://stackfolio-demo.vercel.app',
-            destacado: Boolean(p.destacado),
-          }));
-          setProyectos(mapeados);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const proyectosFiltrados = categoriaActiva === 'todos'
     ? proyectos
     : proyectos.filter((p) => p.categoria === categoriaActiva);
 
-  const manejarAccesoLink = (e, url, tipo) => {
+  const manejarAccesoProtegido = (e, accion, proy = null) => {
     if (!estaLogueado) {
-      e.preventDefault();
-      toast.error(`Acceso bloqueado: iniciá sesión para ver el ${tipo}`);
+      if (e) e.preventDefault();
+      toast.warning('Acceso restringido: Iniciá sesión o registrate para abrir enlaces y detalles de los proyectos.');
       if (onIrALogin) onIrALogin();
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (accion === 'modal' && proy) {
+      setProyectoSeleccionado(proy);
+    }
   };
 
-  // Crear proyecto desde el panel superior desplegable
+  // --- CREAR PROYECTO DESDE ARRIBA ---
   const handleCrearProyecto = (e) => {
     e.preventDefault();
     if (!formCrear.titulo.trim() || !formCrear.descripcion.trim()) {
-      toast.error('Completá título y descripción');
+      toast.error('Completá título y descripción del proyecto.');
       return;
     }
     const techArray = formCrear.tech.split(',').map((t) => t.trim()).filter(Boolean);
     const nuevo = {
-      id: Date.now(),
+      id: `proy-${Date.now()}`,
       titulo: formCrear.titulo.toUpperCase(),
       categoria: formCrear.categoria,
-      tagline: formCrear.tagline || 'Módulo agregado desde panel administrador.',
+      tagline: formCrear.tagline || 'Módulo incorporado desde panel de administración.',
       descripcion: formCrear.descripcion,
       tech: techArray.length ? techArray : ['React'],
-      metricas: { Estado: 'Activo', Origen: 'Admin', Seguridad: 'Protegido' },
+      metricas: { Estado: 'Activo', Origen: 'Admin', Seguridad: 'Verificada' },
       detalles: formCrear.descripcion,
       repoUrl: formCrear.repoUrl || 'https://github.com/SantiagoG2025/stackfolio',
       demoUrl: formCrear.demoUrl || 'https://stackfolio-demo.vercel.app',
@@ -178,6 +156,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
     };
 
     setProyectos((prev) => [nuevo, ...prev]);
+
     fetch('http://127.0.0.1:5000/api/proyectos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,32 +175,32 @@ export default function Projects({ usuarioActual, onIrALogin }) {
 
     setFormCrear(formVacio);
     setMostrarCrearArriba(false);
-    toast.success('Proyecto creado y publicado');
+    toast.success('Proyecto creado y publicado en el portafolio.');
   };
 
-  // Abrir editor inferior al tocar el lapicito de una tarjeta
-  const seleccionarParaEditar = (proyecto) => {
-    setProyectoEditandoId(proyecto.id);
+  // --- ABRIR EDITOR INFERIOR AL TOCAR LAPICITO ---
+  const abrirEditorInferior = (proy) => {
+    setProyectoEditandoId(proy.id);
     setFormEditar({
-      titulo: proyecto.titulo,
-      categoria: proyecto.categoria,
-      tagline: proyecto.tagline || '',
-      descripcion: proyecto.descripcion,
-      tech: Array.isArray(proyecto.tech) ? proyecto.tech.join(', ') : proyecto.tech,
-      repoUrl: proyecto.repoUrl,
-      demoUrl: proyecto.demoUrl,
-      destacado: Boolean(proyecto.destacado)
+      titulo: proy.titulo,
+      categoria: proy.categoria,
+      tagline: proy.tagline || '',
+      descripcion: proy.descripcion,
+      tech: Array.isArray(proy.tech) ? proy.tech.join(', ') : proy.tech,
+      repoUrl: proy.repoUrl,
+      demoUrl: proy.demoUrl,
+      destacado: Boolean(proy.destacado)
     });
     setTimeout(() => {
       editorInferiorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 80);
   };
 
-  // Guardar modificación desde el recuadro inferior
+  // --- GUARDAR CAMBIOS DESDE EDITOR INFERIOR ---
   const handleGuardarEdicion = (e) => {
     e.preventDefault();
     if (!formEditar.titulo.trim() || !formEditar.descripcion.trim()) {
-      toast.error('Completá título y descripción');
+      toast.error('Completá título y descripción.');
       return;
     }
     const techArray = formEditar.tech.split(',').map((t) => t.trim()).filter(Boolean);
@@ -262,11 +241,11 @@ export default function Projects({ usuarioActual, onIrALogin }) {
     }).catch(() => {});
 
     setProyectoEditandoId(null);
-    toast.success('Cambios guardados correctamente');
+    toast.success('Proyecto actualizado correctamente.');
   };
 
-  // Eliminar desde el botón inferior del recuadro de edición
-  const handleEliminarDesdeEditor = () => {
+  // --- ELIMINAR PROYECTO DESDE EDITOR INFERIOR ---
+  const handleEliminarProyecto = () => {
     if (!proyectoEditandoId) return;
     setProyectos((prev) => prev.filter((p) => p.id !== proyectoEditandoId));
     fetch(`http://127.0.0.1:5000/api/proyectos/${proyectoEditandoId}`, {
@@ -274,637 +253,658 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       credentials: 'include'
     }).catch(() => {});
     setProyectoEditandoId(null);
-    toast.success('Proyecto eliminado del portafolio');
-  };
-
-  // Estilos puros (no dependen de Tailwind)
-  const s = {
-    container: {
-      maxWidth: '1180px',
-      margin: '0 auto',
-      padding: '36px 20px 60px',
-      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-      color: '#e2e8f0'
-    },
-    header: { textAlign: 'center', marginBottom: '28px' },
-    pillTop: {
-      display: 'inline-block',
-      padding: '5px 16px',
-      fontSize: '11px',
-      letterSpacing: '0.14em',
-      color: '#38bdf8',
-      border: '1px solid rgba(56,189,248,0.45)',
-      borderRadius: '999px',
-      background: 'rgba(14,165,233,0.08)',
-      marginBottom: '12px'
-    },
-    title: {
-      fontSize: 'clamp(28px, 5vw, 44px)',
-      fontWeight: 800,
-      letterSpacing: '0.12em',
-      color: '#22d3ee',
-      textShadow: '0 0 18px rgba(34,211,238,0.55)',
-      margin: '0 0 8px'
-    },
-    subtitle: {
-      fontSize: '13px',
-      letterSpacing: '0.14em',
-      color: '#34d399',
-      fontWeight: 700,
-      margin: '0 0 12px'
-    },
-    desc: {
-      maxWidth: '640px',
-      margin: '0 auto',
-      fontSize: '13px',
-      color: '#94a3b8',
-      lineHeight: 1.6
-    },
-    visitorBanner: {
-      display: 'inline-block',
-      marginTop: '18px',
-      padding: '9px 18px',
-      borderRadius: '8px',
-      border: '1px solid rgba(244,63,94,0.5)',
-      background: 'rgba(244,63,94,0.1)',
-      color: '#fda4af',
-      fontSize: '12px'
-    },
-    adminTopBar: {
-      marginTop: '18px',
-      display: 'flex',
-      justifyContent: 'center'
-    },
-    btnCrearTop: {
-      padding: '10px 22px',
-      borderRadius: '8px',
-      border: '1px solid #34d399',
-      background: mostrarCrearArriba ? '#34d399' : 'rgba(16,185,129,0.14)',
-      color: mostrarCrearArriba ? '#041019' : '#6ee7b7',
-      fontWeight: 800,
-      fontSize: '12px',
-      letterSpacing: '0.08em',
-      cursor: 'pointer',
-      boxShadow: '0 0 16px rgba(52,211,153,0.25)'
-    },
-    formBox: {
-      maxWidth: '760px',
-      margin: '20px auto 30px',
-      padding: '22px',
-      borderRadius: '14px',
-      background: 'rgba(8,16,30,0.94)',
-      border: '1px solid #22d3ee',
-      boxShadow: '0 0 24px rgba(34,211,238,0.18)'
-    },
-    formTitle: {
-      fontSize: '14px',
-      fontWeight: 800,
-      color: '#22d3ee',
-      letterSpacing: '0.08em',
-      marginBottom: '14px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    formGrid2: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-      gap: '12px',
-      marginBottom: '12px'
-    },
-    label: {
-      display: 'block',
-      fontSize: '11px',
-      color: '#7dd3fc',
-      marginBottom: '5px'
-    },
-    input: {
-      width: '100%',
-      boxSizing: 'border-box',
-      padding: '9px 12px',
-      borderRadius: '8px',
-      background: '#040a14',
-      border: '1px solid rgba(56,189,248,0.35)',
-      color: '#f1f5f9',
-      fontSize: '12px',
-      fontFamily: 'inherit',
-      outline: 'none'
-    },
-    filtersRow: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: '10px',
-      marginBottom: '28px'
-    },
-    grid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
-      gap: '22px'
-    },
-    card: (seleccionada) => ({
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      padding: '22px',
-      borderRadius: '14px',
-      background: 'rgba(9,18,34,0.9)',
-      border: seleccionada ? '1.5px solid #fbbf24' : '1px solid rgba(34,211,238,0.28)',
-      boxShadow: seleccionada
-        ? '0 0 22px rgba(251,191,36,0.25)'
-        : '0 0 20px rgba(6,182,212,0.08)'
-    }),
-    pencilBtn: {
-      position: 'absolute',
-      top: '14px',
-      right: '14px',
-      width: '30px',
-      height: '30px',
-      borderRadius: '8px',
-      border: '1px solid rgba(251,191,36,0.55)',
-      background: 'rgba(251,191,36,0.12)',
-      color: '#fcd34d',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '13px',
-      cursor: 'pointer'
-    },
-    cardTopMeta: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      marginBottom: '12px',
-      paddingRight: esAdmin ? '36px' : '0'
-    },
-    catBadge: {
-      padding: '3px 9px',
-      fontSize: '10px',
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      borderRadius: '5px',
-      border: '1px solid rgba(52,211,153,0.5)',
-      background: 'rgba(16,185,129,0.12)',
-      color: '#6ee7b7'
-    },
-    starBadge: {
-      fontSize: '11px',
-      fontWeight: 700,
-      color: '#fb7185'
-    },
-    cardTitle: {
-      fontSize: '17px',
-      fontWeight: 800,
-      color: '#22d3ee',
-      margin: '0 0 8px',
-      letterSpacing: '0.04em'
-    },
-    cardDesc: {
-      fontSize: '12.5px',
-      color: '#cbd5e1',
-      lineHeight: 1.55,
-      margin: '0 0 14px'
-    },
-    techWrap: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '6px',
-      marginBottom: '16px'
-    },
-    techChip: {
-      padding: '3px 8px',
-      fontSize: '10.5px',
-      borderRadius: '5px',
-      background: 'rgba(15,23,42,0.9)',
-      border: '1px solid rgba(56,189,248,0.28)',
-      color: '#bae6fd'
-    },
-    cardFooter: {
-      borderTop: '1px solid rgba(51,65,85,0.6)',
-      paddingTop: '12px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px'
-    },
-    linkBtnsRow: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '8px'
-    },
-    btnLink: (activo, color) => ({
-      padding: '8px 10px',
-      borderRadius: '8px',
-      fontSize: '11px',
-      fontWeight: 700,
-      fontFamily: 'inherit',
-      cursor: 'pointer',
-      border: activo
-        ? `1px solid ${color}`
-        : '1px solid rgba(100,116,139,0.45)',
-      background: activo
-        ? color === '#22d3ee'
-          ? 'rgba(34,211,238,0.12)'
-          : 'rgba(52,211,153,0.12)'
-        : 'rgba(15,23,42,0.8)',
-      color: activo ? '#e0f2fe' : '#94a3b8'
-    }),
-    btnInspect: {
-      width: '100%',
-      padding: '7px',
-      borderRadius: '8px',
-      fontSize: '11px',
-      fontFamily: 'inherit',
-      background: 'rgba(30,41,59,0.65)',
-      border: '1px solid rgba(71,85,105,0.6)',
-      color: '#cbd5e1',
-      cursor: 'pointer'
-    }
+    toast.success('Proyecto eliminado del portafolio.');
   };
 
   return (
-    <section style={s.container}>
-      {/* Encabezado */}
-      <div style={s.header}>
-        <span style={s.pillTop}>// INGENIERÍA INFORMÁTICA - UCASAL //</span>
-        <h1 style={s.title}>SANTIAGO GÓMEZ</h1>
-        <p style={s.subtitle}>[ FULL STACK DEVELOPER & SOFTWARE ARCHITECT ]</p>
-        <p style={s.desc}>
+    <section
+      translate="no"
+      style={{
+        backgroundColor: '#030a16',
+        padding: '50px 24px',
+        color: '#00f3ff',
+        fontFamily: 'monospace, sans-serif',
+        boxSizing: 'border-box',
+      }}
+    >
+      <style>{`
+        .sf-grid-proyectos {
+          max-width: 1140px !important;
+          margin: 0 auto !important;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+          gap: 24px !important;
+        }
+        .sf-card-project {
+          position: relative !important;
+          background: rgba(6, 22, 46, 0.92) !important;
+          border: 1px solid rgba(0, 243, 255, 0.35) !important;
+          border-radius: 12px !important;
+          padding: 24px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+          transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
+          box-sizing: border-box !important;
+        }
+        .sf-card-project:hover {
+          transform: translateY(-5px) !important;
+          border-color: #00f3ff !important;
+          box-shadow: 0 0 25px rgba(0, 243, 255, 0.3) !important;
+        }
+        .sf-card-project.editando {
+          border: 1.5px solid #fbbf24 !important;
+          box-shadow: 0 0 22px rgba(251, 191, 36, 0.35) !important;
+        }
+        .sf-filter-btn {
+          background: rgba(4, 18, 38, 0.8) !important;
+          border: 1px solid rgba(0, 243, 255, 0.45) !important;
+          color: #00f3ff !important;
+          padding: 9px 18px !important;
+          border-radius: 6px !important;
+          font-family: monospace !important;
+          cursor: pointer !important;
+          font-weight: bold !important;
+          font-size: 0.82rem !important;
+          letter-spacing: 1px !important;
+        }
+        .sf-filter-btn.active, .sf-filter-btn:hover {
+          background: #00f3ff !important;
+          color: #030a16 !important;
+          box-shadow: 0 0 14px rgba(0, 243, 255, 0.6) !important;
+        }
+        .sf-link-btn {
+          flex: 1 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 9px 10px !important;
+          border-radius: 6px !important;
+          font-size: 0.78rem !important;
+          font-weight: bold !important;
+          text-decoration: none !important;
+          font-family: monospace !important;
+          cursor: pointer !important;
+          box-sizing: border-box !important;
+        }
+        .sf-admin-box {
+          max-width: 780px !important;
+          margin: 24px auto !important;
+          background: rgba(6, 22, 46, 0.96) !important;
+          border: 1px solid #00f3ff !important;
+          border-radius: 12px !important;
+          padding: 24px !important;
+          box-shadow: 0 0 28px rgba(0, 243, 255, 0.25) !important;
+          box-sizing: border-box !important;
+          text-align: left !important;
+        }
+        .sf-admin-input {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: #020a18 !important;
+          border: 1px solid rgba(0, 243, 255, 0.4) !important;
+          border-radius: 6px !important;
+          padding: 9px 12px !important;
+          color: #e2e8f0 !important;
+          font-family: monospace !important;
+          font-size: 0.85rem !important;
+          outline: none !important;
+        }
+        .sf-pencil-icon {
+          position: absolute !important;
+          top: 12px !important;
+          right: 12px !important;
+          width: 30px !important;
+          height: 30px !important;
+          border-radius: 6px !important;
+          background: rgba(251, 191, 36, 0.14) !important;
+          border: 1px solid rgba(251, 191, 36, 0.65) !important;
+          color: #fbbf24 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          font-size: 0.85rem !important;
+          padding: 0 !important;
+        }
+      `}</style>
+
+      {/* ENCABEZADO */}
+      <div style={{ maxWidth: '1140px', margin: '0 auto 36px auto', textAlign: 'center' }}>
+        <div
+          style={{
+            display: 'inline-block',
+            backgroundColor: 'rgba(0, 243, 255, 0.1)',
+            border: '1px solid #00f3ff',
+            padding: '5px 16px',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            letterSpacing: '2px',
+            marginBottom: '14px',
+          }}
+        >
+          // INGENIERÍA INFORMÁTICA - UCASAL //
+        </div>
+
+        <h1
+          style={{
+            fontSize: '2.6rem',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            color: '#00f3ff',
+            textShadow: '0 0 20px rgba(0, 243, 255, 0.6)',
+            margin: '0 0 8px 0',
+          }}
+        >
+          SANTIAGO GÓMEZ
+        </h1>
+
+        <div
+          style={{
+            fontSize: '1rem',
+            color: '#00ff66',
+            letterSpacing: '2px',
+            fontWeight: 'bold',
+            marginBottom: '14px',
+          }}
+        >
+          [ FULL STACK DEVELOPER &amp; SOFTWARE ARCHITECT ]
+        </div>
+
+        <p style={{ color: '#94a3b8', fontSize: '0.98rem', maxWidth: '680px', margin: '0 auto 22px auto', lineHeight: '1.6' }}>
           Desarrollo de software frontend y backend, arquitectura de componentes modulares y sistemas con estética Cyberpunk de alta densidad visual.
         </p>
 
-        {!estaLogueado && (
-          <div style={s.visitorBanner}>
-            🔒 MODO VISITANTE: INICIÁ SESIÓN PARA DESBLOQUEAR LOS LINKS DE PROYECTOS
-          </div>
-        )}
+        {/* BANNER DE ESTADO DE SESIÓN */}
+        <div
+          style={{
+            display: 'inline-block',
+            padding: '8px 18px',
+            borderRadius: '6px',
+            fontSize: '0.8rem',
+            fontWeight: 'bold',
+            backgroundColor: estaLogueado ? 'rgba(0, 255, 102, 0.12)' : 'rgba(255, 102, 139, 0.12)',
+            border: `1px solid ${estaLogueado ? '#00ff66' : '#ff668b'}`,
+            color: estaLogueado ? '#00ff66' : '#ff668b',
+          }}
+        >
+          {estaLogueado
+            ? '🔓 SESIÓN VERIFICADA: ENLACES DE REPOSITORIO Y DEMOS DESBLOQUEADOS'
+            : '🔒 MODO VISITANTE: INICIÁ SESIÓN PARA DESBLOQUEAR LOS LINKS DE PROYECTOS'}
+        </div>
 
-        {/* Botón superior exclusivo para Admin */}
+        {/* BOTÓN ARRIBA DE TODO PARA CREAR NUEVO PROYECTO (SOLO ADMIN) */}
         {esAdmin && (
-          <div style={s.adminTopBar}>
+          <div style={{ marginTop: '18px' }}>
             <button
               type="button"
               onClick={() => setMostrarCrearArriba((prev) => !prev)}
-              style={s.btnCrearTop}
+              style={{
+                backgroundColor: mostrarCrearArriba ? '#00ff66' : 'rgba(0, 255, 102, 0.14)',
+                border: '1px solid #00ff66',
+                color: mostrarCrearArriba ? '#030a16' : '#00ff66',
+                padding: '10px 22px',
+                borderRadius: '6px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                letterSpacing: '1.5px',
+                cursor: 'pointer',
+                boxShadow: '0 0 15px rgba(0, 255, 102, 0.25)',
+              }}
             >
-              {mostrarCrearArriba ? '✕ CERRAR FORMULARIO' : '+ CREAR NUEVO PROYECTO'}
+              {mostrarCrearArriba ? '✕ CERRAR FORMULARIO DE CREACIÓN' : '+ CREAR NUEVO PROYECTO'}
             </button>
           </div>
         )}
-      </div>
 
-      {/* Formulario desplegable ARRIBA para crear proyecto nuevo */}
-      {esAdmin && mostrarCrearArriba && (
-        <form onSubmit={handleCrearProyecto} style={s.formBox}>
-          <div style={s.formTitle}>
-            <span>+ CREAR NUEVO PROYECTO EN PORTAFOLIO</span>
-          </div>
+        {/* RECUADRO DESPLEGABLE ARRIBA PARA CREAR PROYECTO NUEVO */}
+        {esAdmin && mostrarCrearArriba && (
+          <form onSubmit={handleCrearProyecto} className="sf-admin-box">
+            <div style={{ color: '#00ff66', fontWeight: 'bold', fontSize: '0.95rem', marginBottom: '16px', letterSpacing: '1px' }}>
+              // ALTA DE NUEVO MÓDULO EN PORTAFOLIO //
+            </div>
 
-          <div style={s.formGrid2}>
-            <div>
-              <label style={s.label}>Título del proyecto *</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>TÍTULO *</label>
+                <input
+                  type="text"
+                  className="sf-admin-input"
+                  placeholder="Ej: API CLOUD GESTIÓN"
+                  value={formCrear.titulo}
+                  onChange={(e) => setFormCrear({ ...formCrear, titulo: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>CATEGORÍA</label>
+                <select
+                  className="sf-admin-input"
+                  value={formCrear.categoria}
+                  onChange={(e) => setFormCrear({ ...formCrear, categoria: e.target.value })}
+                >
+                  <option value="frontend">FRONTEND &amp; REACT</option>
+                  <option value="fullstack">SISTEMAS &amp; DASHBOARDS</option>
+                  <option value="engine">ENGINE &amp; CANVAS</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>SUBTÍTULO / TAGLINE</label>
               <input
                 type="text"
-                placeholder="Ej: SISTEMA GESTIÓN CLOUD"
-                value={formCrear.titulo}
-                onChange={(e) => setFormCrear({ ...formCrear, titulo: e.target.value })}
-                style={s.input}
+                className="sf-admin-input"
+                placeholder="Breve resumen técnico..."
+                value={formCrear.tagline}
+                onChange={(e) => setFormCrear({ ...formCrear, tagline: e.target.value })}
+              />
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>DESCRIPCIÓN *</label>
+              <textarea
+                rows={2}
+                className="sf-admin-input"
+                placeholder="Descripción funcional del proyecto..."
+                value={formCrear.descripcion}
+                onChange={(e) => setFormCrear({ ...formCrear, descripcion: e.target.value })}
                 required
               />
             </div>
-            <div>
-              <label style={s.label}>Categoría</label>
-              <select
-                value={formCrear.categoria}
-                onChange={(e) => setFormCrear({ ...formCrear, categoria: e.target.value })}
-                style={s.input}
-              >
-                <option value="frontend">Frontend & React</option>
-                <option value="fullstack">Sistemas & Dashboards</option>
-                <option value="engine">Engine & Canvas</option>
-              </select>
-            </div>
-          </div>
 
-          <div style={{ marginBottom: '12px' }}>
-            <label style={s.label}>Descripción *</label>
-            <textarea
-              rows={2}
-              placeholder="Describí brevemente qué resuelve el proyecto..."
-              value={formCrear.descripcion}
-              onChange={(e) => setFormCrear({ ...formCrear, descripcion: e.target.value })}
-              style={s.input}
-              required
-            />
-          </div>
-
-          <div style={s.formGrid2}>
-            <div>
-              <label style={s.label}>Tecnologías (separadas por coma)</label>
-              <input
-                type="text"
-                value={formCrear.tech}
-                onChange={(e) => setFormCrear({ ...formCrear, tech: e.target.value })}
-                style={s.input}
-              />
-            </div>
-            <div>
-              <label style={s.label}>URL Repositorio GitHub</label>
-              <input
-                type="text"
-                value={formCrear.repoUrl}
-                onChange={(e) => setFormCrear({ ...formCrear, repoUrl: e.target.value })}
-                style={s.input}
-              />
-            </div>
-          </div>
-
-          <div style={s.formGrid2}>
-            <div>
-              <label style={s.label}>URL Demo en Vivo</label>
-              <input
-                type="text"
-                value={formCrear.demoUrl}
-                onChange={(e) => setFormCrear({ ...formCrear, demoUrl: e.target.value })}
-                style={s.input}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', paddingTop: '18px' }}>
-              <label style={{ fontSize: '12px', color: '#fda4af', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>TECNOLOGÍAS (COMAS)</label>
                 <input
-                  type="checkbox"
-                  checked={formCrear.destacado}
-                  onChange={(e) => setFormCrear({ ...formCrear, destacado: e.target.checked })}
+                  type="text"
+                  className="sf-admin-input"
+                  value={formCrear.tech}
+                  onChange={(e) => setFormCrear({ ...formCrear, tech: e.target.value })}
                 />
-                ★ Marcar como Destacado
-              </label>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>URL REPOSITORIO</label>
+                <input
+                  type="text"
+                  className="sf-admin-input"
+                  value={formCrear.repoUrl}
+                  onChange={(e) => setFormCrear({ ...formCrear, repoUrl: e.target.value })}
+                />
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-            <button
-              type="button"
-              onClick={() => setMostrarCrearArriba(false)}
-              style={{
-                padding: '9px 16px',
-                borderRadius: '8px',
-                border: '1px solid #475569',
-                background: 'transparent',
-                color: '#cbd5e1',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              CANCELAR
-            </button>
-            <button
-              type="submit"
-              style={{
-                padding: '9px 20px',
-                borderRadius: '8px',
-                border: '1px solid #34d399',
-                background: '#34d399',
-                color: '#041019',
-                fontWeight: 800,
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              💾 GUARDAR NUEVO PROYECTO
-            </button>
-          </div>
-        </form>
-      )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>URL DEMO</label>
+                <input
+                  type="text"
+                  className="sf-admin-input"
+                  value={formCrear.demoUrl}
+                  onChange={(e) => setFormCrear({ ...formCrear, demoUrl: e.target.value })}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', paddingTop: '18px' }}>
+                <label style={{ fontSize: '0.8rem', color: '#ff0055', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                  <input
+                    type="checkbox"
+                    checked={formCrear.destacado}
+                    onChange={(e) => setFormCrear({ ...formCrear, destacado: e.target.checked })}
+                  />
+                  ★ MARCAR COMO DESTACADO
+                </label>
+              </div>
+            </div>
 
-      {/* Filtros de categoría */}
-      <div style={s.filtersRow}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setMostrarCrearArriba(false)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #475569',
+                  color: '#94a3b8',
+                  padding: '9px 16px',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  cursor: 'pointer',
+                }}
+              >
+                CANCELAR
+              </button>
+              <button
+                type="submit"
+                style={{
+                  background: '#00ff66',
+                  border: 'none',
+                  color: '#030a16',
+                  padding: '9px 20px',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
+              >
+                💾 GUARDAR PROYECTO
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* FILTROS */}
+      <div
+        style={{
+          maxWidth: '1140px',
+          margin: '0 auto 32px auto',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
         {[
           { id: 'todos', label: '[ TODOS LOS MÓDULOS ]' },
           { id: 'frontend', label: '[ FRONTEND & REACT ]' },
           { id: 'fullstack', label: '[ SISTEMAS & DASHBOARDS ]' },
-          { id: 'engine', label: '[ ENGINE & CANVAS ]' }
-        ].map((cat) => {
-          const activa = categoriaActiva === cat.id;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setCategoriaActiva(cat.id)}
-              style={{
-                padding: '9px 16px',
-                borderRadius: '8px',
-                fontSize: '11.5px',
-                fontWeight: 700,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                border: activa ? '1px solid #22d3ee' : '1px solid rgba(34,211,238,0.28)',
-                background: activa ? '#22d3ee' : 'rgba(9,18,34,0.85)',
-                color: activa ? '#041019' : '#67e8f9',
-                boxShadow: activa ? '0 0 16px rgba(34,211,238,0.45)' : 'none'
-              }}
-            >
-              {cat.label}
-            </button>
-          );
-        })}
+          { id: 'engine', label: '[ ENGINE & CANVAS ]' },
+        ].map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setCategoriaActiva(f.id)}
+            className={`sf-filter-btn ${categoriaActiva === f.id ? 'active' : ''}`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      {/* Grilla de Proyectos */}
-      <div style={s.grid}>
-        {proyectosFiltrados.map((proyecto) => (
-          <article
-            key={proyecto.id}
-            style={s.card(proyectoEditandoId === proyecto.id)}
+      {/* GRILLA DE TARJETAS EN 3 COLUMNAS */}
+      <div className="sf-grid-proyectos">
+        {proyectosFiltrados.map((proy) => (
+          <div
+            key={proy.id}
+            className={`sf-card-project ${proyectoEditandoId === proy.id ? 'editando' : ''}`}
           >
-            {/* Ícono lapicito discreto en la esquina superior derecha (solo Admin) */}
+            {/* ÍCONO LAPICITO EN LA ESQUINA SUPERIOR DERECHA (SOLO ADMIN) */}
             {esAdmin && (
               <button
                 type="button"
                 title="Modificar este proyecto"
-                onClick={() => seleccionarParaEditar(proyecto)}
-                style={s.pencilBtn}
+                onClick={() => abrirEditorInferior(proy)}
+                className="sf-pencil-icon"
               >
                 ✏️
               </button>
             )}
 
             <div>
-              <div style={s.cardTopMeta}>
-                <span style={s.catBadge}>{proyecto.categoria}</span>
-                {proyecto.destacado && <span style={s.starBadge}>★ DESTACADO</span>}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '12px',
+                  paddingRight: esAdmin ? '36px' : '0',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: '#00ff66',
+                    border: '1px solid #00ff66',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    letterSpacing: '1px',
+                  }}
+                >
+                  {proy.categoria.toUpperCase()}
+                </span>
+                {proy.destacado && (
+                  <span style={{ fontSize: '0.72rem', color: '#ff0055', letterSpacing: '1px', fontWeight: 'bold' }}>
+                    ★ DESTACADO
+                  </span>
+                )}
               </div>
 
-              <h2 style={s.cardTitle}>{proyecto.titulo}</h2>
-              <p style={s.cardDesc}>{proyecto.descripcion}</p>
+              <h3
+                style={{
+                  fontSize: '1.2rem',
+                  color: '#00f3ff',
+                  margin: '0 0 8px 0',
+                  letterSpacing: '1px',
+                }}
+              >
+                {proy.titulo}
+              </h3>
 
-              <div style={s.techWrap}>
-                {proyecto.tech.map((t, idx) => (
-                  <span key={idx} style={s.techChip}>{t}</span>
-                ))}
-              </div>
+              <p style={{ color: '#38bdf8', fontSize: '0.85rem', margin: '0 0 12px 0', fontWeight: 'bold' }}>
+                {proy.tagline}
+              </p>
+
+              <p style={{ color: '#94a3b8', fontSize: '0.86rem', lineHeight: '1.5', margin: '0 0 18px 0' }}>
+                {proy.descripcion}
+              </p>
             </div>
 
-            <div style={s.cardFooter}>
-              <div style={s.linkBtnsRow}>
-                <button
-                  type="button"
-                  onClick={(e) => manejarAccesoLink(e, proyecto.repoUrl, 'repositorio GitHub')}
-                  style={s.btnLink(estaLogueado, '#22d3ee')}
+            <div>
+              {/* BADGES */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '18px' }}>
+                {proy.tech.map((t, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      fontSize: '0.72rem',
+                      backgroundColor: 'rgba(0, 243, 255, 0.08)',
+                      color: '#00f3ff',
+                      border: '1px solid rgba(0, 243, 255, 0.35)',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              {/* BOTONES DE ENLACES CON TRABA */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <a
+                  href={estaLogueado ? proy.repoUrl : '#login-requerido'}
+                  target={estaLogueado ? '_blank' : undefined}
+                  rel={estaLogueado ? 'noopener noreferrer' : undefined}
+                  onClick={(e) => manejarAccesoProtegido(e, 'link')}
+                  className="sf-link-btn"
+                  style={{
+                    backgroundColor: estaLogueado ? 'rgba(0, 255, 102, 0.14)' : 'rgba(15, 23, 42, 0.9)',
+                    border: `1px solid ${estaLogueado ? '#00ff66' : '#475569'}`,
+                    color: estaLogueado ? '#00ff66' : '#94a3b8',
+                  }}
                 >
-                  {estaLogueado ? '📂 CÓDIGO GIT' : '🔒 CÓDIGO GIT'}
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => manejarAccesoLink(e, proyecto.demoUrl, 'despliegue en vivo')}
-                  style={s.btnLink(estaLogueado, '#34d399')}
+                  {estaLogueado ? '↗ GITHUB' : '🔒 GITHUB'}
+                </a>
+
+                <a
+                  href={estaLogueado ? proy.demoUrl : '#login-requerido'}
+                  target={estaLogueado ? '_blank' : undefined}
+                  rel={estaLogueado ? 'noopener noreferrer' : undefined}
+                  onClick={(e) => manejarAccesoProtegido(e, 'link')}
+                  className="sf-link-btn"
+                  style={{
+                    backgroundColor: estaLogueado ? 'rgba(0, 243, 255, 0.14)' : 'rgba(15, 23, 42, 0.9)',
+                    border: `1px solid ${estaLogueado ? '#00f3ff' : '#475569'}`,
+                    color: estaLogueado ? '#00f3ff' : '#94a3b8',
+                  }}
                 >
-                  {estaLogueado ? '🚀 DEMO LIVE' : '🔒 DEMO LIVE'}
-                </button>
+                  {estaLogueado ? '↗ DEMO' : '🔒 DEMO'}
+                </a>
               </div>
 
               <button
-                type="button"
-                onClick={() => setProyectoSeleccionado(proyecto)}
-                style={s.btnInspect}
+                onClick={(e) => manejarAccesoProtegido(e, 'modal', proy)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: estaLogueado ? 'rgba(0, 243, 255, 0.15)' : 'rgba(255, 102, 139, 0.12)',
+                  border: `1px solid ${estaLogueado ? '#00f3ff' : '#ff668b'}`,
+                  color: estaLogueado ? '#00f3ff' : '#ff668b',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontFamily: 'monospace',
+                  letterSpacing: '1px',
+                }}
               >
-                [ INSPECCIONAR MÉTRICAS ]
+                {estaLogueado ? 'INSPECCIONAR MÉTRICAS' : '🔒 INICIAR SESIÓN PARA VER'}
               </button>
             </div>
-          </article>
+          </div>
         ))}
       </div>
 
-      {/* Recuadro INFERIOR (al final de todos los proyectos) al tocar el lapicito */}
+      {/* RECUADRO INFERIOR (AL FINAL DE TODOS LOS PROYECTOS) AL TOCAR EL LAPICITO */}
       {esAdmin && proyectoEditandoId !== null && (
-        <div ref={editorInferiorRef} style={{ marginTop: '38px' }}>
+        <div ref={editorInferiorRef} style={{ marginTop: '40px' }}>
           <form
             onSubmit={handleGuardarEdicion}
-            style={{
-              ...s.formBox,
-              border: '1px solid #fbbf24',
-              boxShadow: '0 0 26px rgba(251,191,36,0.18)'
-            }}
+            className="sf-admin-box"
+            style={{ borderColor: '#fbbf24', boxShadow: '0 0 28px rgba(251, 191, 36, 0.25)' }}
           >
-            <div style={{ ...s.formTitle, color: '#fcd34d' }}>
-              <span>✏️ MODIFICANDO PROYECTO: {formEditar.titulo}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <span style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '0.95rem', letterSpacing: '1px' }}>
+                ✏️ MODIFICAR PROYECTO: {formEditar.titulo}
+              </span>
               <button
                 type="button"
                 onClick={() => setProyectoEditandoId(null)}
                 style={{
-                  background: 'transparent',
+                  background: 'none',
                   border: 'none',
                   color: '#94a3b8',
+                  fontFamily: 'monospace',
                   cursor: 'pointer',
-                  fontSize: '12px'
+                  fontWeight: 'bold',
                 }}
               >
                 [ CERRAR ✕ ]
               </button>
             </div>
 
-            <div style={s.formGrid2}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
               <div>
-                <label style={s.label}>Título del proyecto *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>TÍTULO *</label>
                 <input
                   type="text"
+                  className="sf-admin-input"
                   value={formEditar.titulo}
                   onChange={(e) => setFormEditar({ ...formEditar, titulo: e.target.value })}
-                  style={s.input}
                   required
                 />
               </div>
               <div>
-                <label style={s.label}>Categoría</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>CATEGORÍA</label>
                 <select
+                  className="sf-admin-input"
                   value={formEditar.categoria}
                   onChange={(e) => setFormEditar({ ...formEditar, categoria: e.target.value })}
-                  style={s.input}
                 >
-                  <option value="frontend">Frontend & React</option>
-                  <option value="fullstack">Sistemas & Dashboards</option>
-                  <option value="engine">Engine & Canvas</option>
+                  <option value="frontend">FRONTEND &amp; REACT</option>
+                  <option value="fullstack">SISTEMAS &amp; DASHBOARDS</option>
+                  <option value="engine">ENGINE &amp; CANVAS</option>
                 </select>
               </div>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={s.label}>Descripción *</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>SUBTÍTULO / TAGLINE</label>
+              <input
+                type="text"
+                className="sf-admin-input"
+                value={formEditar.tagline}
+                onChange={(e) => setFormEditar({ ...formEditar, tagline: e.target.value })}
+              />
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>DESCRIPCIÓN *</label>
               <textarea
                 rows={3}
+                className="sf-admin-input"
                 value={formEditar.descripcion}
                 onChange={(e) => setFormEditar({ ...formEditar, descripcion: e.target.value })}
-                style={s.input}
                 required
               />
             </div>
 
-            <div style={s.formGrid2}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
               <div>
-                <label style={s.label}>Tecnologías (separadas por coma)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>TECNOLOGÍAS (COMAS)</label>
                 <input
                   type="text"
+                  className="sf-admin-input"
                   value={formEditar.tech}
                   onChange={(e) => setFormEditar({ ...formEditar, tech: e.target.value })}
-                  style={s.input}
                 />
               </div>
               <div>
-                <label style={s.label}>URL Repositorio GitHub</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>URL REPOSITORIO</label>
                 <input
                   type="text"
+                  className="sf-admin-input"
                   value={formEditar.repoUrl}
                   onChange={(e) => setFormEditar({ ...formEditar, repoUrl: e.target.value })}
-                  style={s.input}
                 />
               </div>
             </div>
 
-            <div style={s.formGrid2}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '18px' }}>
               <div>
-                <label style={s.label}>URL Demo en Vivo</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#38bdf8', marginBottom: '5px' }}>URL DEMO</label>
                 <input
                   type="text"
+                  className="sf-admin-input"
                   value={formEditar.demoUrl}
                   onChange={(e) => setFormEditar({ ...formEditar, demoUrl: e.target.value })}
-                  style={s.input}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', paddingTop: '18px' }}>
-                <label style={{ fontSize: '12px', color: '#fda4af', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '0.8rem', color: '#ff0055', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                   <input
                     type="checkbox"
                     checked={formEditar.destacado}
                     onChange={(e) => setFormEditar({ ...formEditar, destacado: e.target.checked })}
                   />
-                  ★ Marcar como Destacado
+                  ★ MARCAR COMO DESTACADO
                 </label>
               </div>
             </div>
 
-            {/* Parte inferior del recuadro: icono de Guardar o Eliminar */}
+            {/* PARTE INFERIOR DEL RECUADRO: ICONO DE GUARDADO O ELIMINAR */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 gap: '12px',
-                marginTop: '16px',
                 paddingTop: '14px',
-                borderTop: '1px solid rgba(71,85,105,0.5)'
+                borderTop: '1px solid rgba(71, 85, 105, 0.5)',
               }}
             >
               <button
                 type="button"
-                onClick={handleEliminarDesdeEditor}
+                onClick={handleEliminarProyecto}
                 style={{
-                  padding: '9px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(244,63,94,0.65)',
-                  background: 'rgba(244,63,94,0.14)',
-                  color: '#fda4af',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  cursor: 'pointer'
+                  background: 'rgba(255, 0, 85, 0.14)',
+                  border: '1px solid #ff0055',
+                  color: '#ff668b',
+                  padding: '10px 18px',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
                 }}
               >
                 🗑️ ELIMINAR PROYECTO
@@ -913,14 +913,14 @@ export default function Projects({ usuarioActual, onIrALogin }) {
               <button
                 type="submit"
                 style={{
-                  padding: '9px 22px',
-                  borderRadius: '8px',
-                  border: '1px solid #fbbf24',
                   background: '#fbbf24',
-                  color: '#041019',
-                  fontWeight: 800,
-                  fontSize: '12px',
-                  cursor: 'pointer'
+                  border: 'none',
+                  color: '#030a16',
+                  padding: '10px 22px',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
                 }}
               >
                 💾 GUARDAR CAMBIOS
@@ -930,82 +930,93 @@ export default function Projects({ usuarioActual, onIrALogin }) {
         </div>
       )}
 
-      {/* Modal de Inspección de Métricas */}
+      {/* MODAL DE MÉTRICAS */}
       {proyectoSeleccionado && (
         <div
           style={{
             position: 'fixed',
-            inset: 0,
-            zIndex: 50,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(3, 10, 22, 0.92)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(2,6,15,0.85)',
-            padding: '16px'
+            zIndex: 1000,
+            padding: '20px',
           }}
         >
           <div
             style={{
+              backgroundColor: '#041226',
+              border: '2px solid #00f3ff',
+              boxShadow: '0 0 35px rgba(0, 243, 255, 0.4)',
+              borderRadius: '12px',
+              maxWidth: '520px',
               width: '100%',
-              maxWidth: '480px',
-              padding: '24px',
-              borderRadius: '14px',
-              background: '#081122',
-              border: '1px solid #22d3ee',
-              boxShadow: '0 0 30px rgba(34,211,238,0.28)'
+              padding: '28px',
+              position: 'relative',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', color: '#22d3ee' }}>
-                {proyectoSeleccionado.titulo}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setProyectoSeleccionado(null)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 700 }}
-              >
-                [ X ]
-              </button>
-            </div>
-            <p style={{ fontSize: '12px', color: '#34d399', margin: '0 0 10px' }}>
-              {proyectoSeleccionado.tagline}
+            <button
+              onClick={() => setProyectoSeleccionado(null)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '15px',
+                background: 'none',
+                border: 'none',
+                color: '#ff0055',
+                fontSize: '1.4rem',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              ✕
+            </button>
+            <h3 style={{ color: '#00f3ff', fontSize: '1.4rem', marginBottom: '8px', letterSpacing: '2px' }}>
+              {proyectoSeleccionado.titulo}
+            </h3>
+            <p style={{ color: '#00ff66', fontSize: '0.85rem', marginBottom: '18px' }}>
+              // ESPECIFICACIÓN DE TELEMETRÍA Y ARQUITECTURA //
             </p>
-            <p style={{ fontSize: '12.5px', color: '#cbd5e1', lineHeight: 1.6, margin: '0 0 16px' }}>
-              {proyectoSeleccionado.detalles}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
-              {Object.entries(proyectoSeleccionado.metricas || {}).map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '8px',
-                    background: '#040a14',
-                    border: '1px solid rgba(34,211,238,0.2)',
-                    textAlign: 'center'
-                  }}
-                >
-                  <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>{k}</div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#22d3ee', marginTop: '4px' }}>{v}</div>
+            <div
+              style={{
+                backgroundColor: '#020a18',
+                padding: '16px',
+                borderRadius: '8px',
+                border: '1px solid rgba(0, 243, 255, 0.2)',
+                marginBottom: '18px',
+              }}
+            >
+              {Object.entries(proyectoSeleccionado.metricas).map(([k, v], i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#94a3b8', textTransform: 'uppercase' }}>{k}:</span>
+                  <span style={{ color: '#00f3ff', fontWeight: 'bold' }}>{v}</span>
                 </div>
               ))}
             </div>
+            <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5', marginBottom: '22px' }}>
+              {proyectoSeleccionado.detalles}
+            </p>
             <button
-              type="button"
               onClick={() => setProyectoSeleccionado(null)}
               style={{
                 width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
+                padding: '12px',
+                backgroundColor: '#00f3ff',
+                color: '#030a16',
                 border: 'none',
-                background: '#22d3ee',
-                color: '#041019',
-                fontWeight: 800,
-                fontSize: '12px',
-                cursor: 'pointer'
+                borderRadius: '4px',
+                fontWeight: 'bold',
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                letterSpacing: '2px',
               }}
             >
-              CERRAR INSPECCIÓN
+              CERRAR MÓDULO
             </button>
           </div>
         </div>
