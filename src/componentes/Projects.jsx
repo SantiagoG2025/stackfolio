@@ -29,16 +29,16 @@ export default function Projects({ usuarioActual, onIrALogin }) {
 
   const proyectosIniciales = [
     {
-      id: 'stackfolio',
-      titulo: 'STACKFOLIO // CYBER AUTH',
+      id: 'descanso-celestial',
+      titulo: 'DESCANSO CELESTIAL // HOTEL 5★',
       categoria: 'frontend',
-      tagline: 'Sistema de autenticación y portafolio modular neón.',
-      descripcion: 'Plataforma web desacoplada con animaciones en canvas de Matrix digital y guardián felino programado puramente en vectores SVG.',
-      tech: ['React', 'Vite', 'JavaScript', 'SVG', 'CSS3'],
-      metricas: { Renderizado: '60 FPS', Componentes: '12 React UI', Estado: '100% Modulado' },
-      detalles: 'Implementa lógica de validación de campos en tiempo real, cambio dinámico de visibilidad de credenciales y estados interactivos visuales.',
-      repoUrl: 'https://github.com/SantiagoG2025/stackfolio',
-      demoUrl: 'https://stackfolio-demo.vercel.app',
+      tagline: 'Sistema web de reservas y gestión hotelera.',
+      descripcion: 'Plataforma turística para complejo hotelero 5 estrellas con catálogo de habitaciones (1 a 4 huéspedes), calendario de estadía y confirmación de reservas.',
+      tech: ['React', 'Vite', 'React Router', 'CSS3'],
+      metricas: { Categoría: '5 Estrellas', Habitaciones: '1-4 Huéspedes', Despliegue: 'Vercel' },
+      detalles: 'Implementa enrutamiento multipágina (Inicio, About, Contact, Booking), validación de rangos de fechas y alertas interactivas de reservación completada.',
+      repoUrl: 'https://github.com/RocioSkrivanelli/Trabajo-practico-9-lenguaje.git',
+      demoUrl: 'https://descanso-celestial.vercel.app', // <-- Pegá acá el link exacto de Vercel de tu hotel
       destacado: true
     },
     {
