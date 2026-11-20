@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 export default function Projects({ usuarioActual, onIrALogin }) {
   const [categoriaActiva, setCategoriaActiva] = useState('todos');
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
 
-  const estaLogueado = Boolean(usuarioActual);
+  // Estados de administración (solo visibles si usuarioActual?.rol === 'admin')
+  const [proyectoEditando, setProyectoEditando] = useState(null);
+  const [creandoNuevo, setCreandoNuevo] = useState(false);
+  const [formProyecto, setFormProyecto] = useState({
+    titulo: '',
+    categoria: 'frontend',
+    tagline: '',
+    descripcion: '',
+    tech: '',
+    repoUrl: '',
+    demoUrl: '',
+    destacado: false
+  });
 
-  const proyectos = [
+  const estaLogueado = Boolean(usuarioActual);
+  const esAdmin = usuarioActual?.rol === 'admin';
+
+  const proyectosBase = [
     {
-      id: 'stackfolio',
+      id: 1,
       titulo: 'STACKFOLIO // CYBER AUTH',
       categoria: 'frontend',
       tagline: 'Sistema de autenticación y portafolio modular neón.',
@@ -22,7 +37,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: true
     },
     {
-      id: 'saltavet',
+      id: 2,
       titulo: 'SGA-SALTAVET',
       categoria: 'fullstack',
       tagline: 'Plataforma de gestión y telemetría administrativa.',
@@ -35,7 +50,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: true
     },
     {
-      id: 'matrix-engine',
+      id: 3,
       titulo: 'NEON CANVAS ENGINE',
       categoria: 'engine',
       tagline: 'Motor de renderizado visual de lluvia digital.',
@@ -48,7 +63,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 'parcial-l4',
+      id: 4,
       titulo: 'PARCIAL L4 // VALIDATOR',
       categoria: 'frontend',
       tagline: 'Módulo de registro con restricciones de alta seguridad.',
@@ -61,7 +76,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 'calculus-viz',
+      id: 5,
       titulo: 'ADVANCED CALCULUS VIZ',
       categoria: 'engine',
       tagline: 'Visualizador matemático para cálculo avanzado.',
@@ -74,7 +89,7 @@ export default function Projects({ usuarioActual, onIrALogin }) {
       destacado: false
     },
     {
-      id: 'trail-tracker',
+      id: 6,
       titulo: 'SPORTS & METRICS DASHBOARD',
       categoria: 'fullstack',
       tagline: 'Telemetría de rendimiento físico y carreras 42K.',
@@ -88,393 +103,497 @@ export default function Projects({ usuarioActual, onIrALogin }) {
     }
   ];
 
+  const [proyectos, setProyectos] = useState(() => {
+    const guardados = localStorage.getItem('stackfolio_proyectos');
+    return guardados ? JSON.parse(guardados) : proyectosBase;
+  });
+
+  // Guarda cambios en localStorage para que persistan incluso en Vercel sin backend local
+  useEffect(() => {
+    localStorage.setItem('stackfolio_proyectos', JSON.stringify(proyectos));
+  }, [proyectos]);
+
+  // Sincroniza con SQL Server / Flask si el backend local está activo
+  useEffect(() => {
+    fetch('http://127.0.0.1:5000/api/proyectos', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const mapeados = data.map((p, i) => ({
+            id: p.id_proyecto || i + 1,
+            titulo: p.titulo,
+            categoria: p.categoria || 'fullstack',
+            tagline: p.tagline || 'Módulo conectado a SQL Server',
+            descripcion: p.descripcion,
+            tech: p.tecnologias ? p.tecnologias.split(',').map((t) => t.trim()) : ['React', 'SQL Server'],
+            metricas: { Base_Datos: 'SQL Server', Estado: 'Sincronizado', Rol: 'Protegido' },
+            detalles: p.descripcion,
+            repoUrl: p.url_repositorio || 'https://github.com/SantiagoG2025/stackfolio',
+            demoUrl: p.url_demo || 'https://stackfolio-demo.vercel.app',
+            destacado: Boolean(p.destacado),
+          }));
+          setProyectos(mapeados);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const proyectosFiltrados = categoriaActiva === 'todos'
     ? proyectos
     : proyectos.filter((p) => p.categoria === categoriaActiva);
 
-  const manejarAccesoProtegido = (e, accion, proy = null) => {
+  const manejarAccesoLink = (e, url, tipo) => {
     if (!estaLogueado) {
-      if (e) e.preventDefault();
-      toast.warning('Acceso restringido: Iniciá sesión o registrate para abrir enlaces y detalles de los proyectos.');
+      e.preventDefault();
+      toast.error(`Acceso bloqueado: iniciá sesión para ver el ${tipo}`);
       if (onIrALogin) onIrALogin();
       return;
     }
-    if (accion === 'modal' && proy) {
-      setProyectoSeleccionado(proy);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // --- FUNCIONES DE ADMINISTRADOR ---
+  const abrirNuevoProyecto = () => {
+    setProyectoEditando(null);
+    setCreandoNuevo(true);
+    setFormProyecto({
+      titulo: '',
+      categoria: 'frontend',
+      tagline: '',
+      descripcion: '',
+      tech: 'React, Vite, Tailwind CSS',
+      repoUrl: 'https://github.com/SantiagoG2025/',
+      demoUrl: 'https://',
+      destacado: false
+    });
+  };
+
+  const abrirEdicion = (proyecto) => {
+    setCreandoNuevo(false);
+    setProyectoEditando(proyecto.id);
+    setFormProyecto({
+      titulo: proyecto.titulo,
+      categoria: proyecto.categoria,
+      tagline: proyecto.tagline,
+      descripcion: proyecto.descripcion,
+      tech: Array.isArray(proyecto.tech) ? proyecto.tech.join(', ') : proyecto.tech,
+      repoUrl: proyecto.repoUrl,
+      demoUrl: proyecto.demoUrl,
+      destacado: Boolean(proyecto.destacado)
+    });
+  };
+
+  const cerrarModalAdmin = () => {
+    setProyectoEditando(null);
+    setCreandoNuevo(false);
+  };
+
+  const guardarProyectoAdmin = async (e) => {
+    e.preventDefault();
+    if (!formProyecto.titulo.trim() || !formProyecto.descripcion.trim()) {
+      toast.error('Completá al menos el título y la descripción del proyecto');
+      return;
     }
+
+    const techArray = formProyecto.tech
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    if (creandoNuevo) {
+      const nuevo = {
+        id: Date.now(),
+        titulo: formProyecto.titulo.toUpperCase(),
+        categoria: formProyecto.categoria,
+        tagline: formProyecto.tagline || 'Módulo agregado por administrador.',
+        descripcion: formProyecto.descripcion,
+        tech: techArray.length ? techArray : ['React'],
+        metricas: { Estado: 'Nuevo', Origen: 'Panel Admin', Seguridad: 'Activa' },
+        detalles: formProyecto.descripcion,
+        repoUrl: formProyecto.repoUrl || 'https://github.com/SantiagoG2025/stackfolio',
+        demoUrl: formProyecto.demoUrl || 'https://stackfolio-demo.vercel.app',
+        destacado: formProyecto.destacado
+      };
+
+      setProyectos((prev) => [nuevo, ...prev]);
+
+      // Intenta persistir en Flask / SQL Server si está activo
+      fetch('http://127.0.0.1:5000/api/proyectos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          titulo: nuevo.titulo,
+          categoria: nuevo.categoria,
+          tagline: nuevo.tagline,
+          descripcion: nuevo.descripcion,
+          tecnologias: techArray.join(', '),
+          url_repositorio: nuevo.repoUrl,
+          url_demo: nuevo.demoUrl,
+          destacado: nuevo.destacado ? 1 : 0
+        })
+      }).catch(() => {});
+
+      toast.success('Proyecto creado y publicado en el portafolio');
+    } else {
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.id === proyectoEditando
+            ? {
+                ...p,
+                titulo: formProyecto.titulo.toUpperCase(),
+                categoria: formProyecto.categoria,
+                tagline: formProyecto.tagline,
+                descripcion: formProyecto.descripcion,
+                detalles: formProyecto.descripcion,
+                tech: techArray.length ? techArray : p.tech,
+                repoUrl: formProyecto.repoUrl,
+                demoUrl: formProyecto.demoUrl,
+                destacado: formProyecto.destacado
+              }
+            : p
+        )
+      );
+
+      // Intenta actualizar en Flask / SQL Server si está activo
+      fetch(`http://127.0.0.1:5000/api/proyectos/${proyectoEditando}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          titulo: formProyecto.titulo.toUpperCase(),
+          categoria: formProyecto.categoria,
+          tagline: formProyecto.tagline,
+          descripcion: formProyecto.descripcion,
+          tecnologias: techArray.join(', '),
+          url_repositorio: formProyecto.repoUrl,
+          url_demo: formProyecto.demoUrl,
+          destacado: formProyecto.destacado ? 1 : 0
+        })
+      }).catch(() => {});
+
+      toast.success('Proyecto actualizado correctamente');
+    }
+
+    cerrarModalAdmin();
+  };
+
+  const eliminarProyectoAdmin = (id, titulo) => {
+    setProyectos((prev) => prev.filter((p) => p.id !== id));
+    fetch(`http://127.0.0.1:5000/api/proyectos/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    }).catch(() => {});
+    toast.success(`Proyecto "${titulo}" eliminado`);
   };
 
   return (
-    <section
-      translate="no"
-      style={{
-        backgroundColor: '#030a16',
-        padding: '50px 24px',
-        color: '#00f3ff',
-        fontFamily: 'monospace, sans-serif',
-        boxSizing: 'border-box',
-      }}
-    >
-      <style>{`
-        .sf-grid-proyectos {
-          max-width: 1140px !important;
-          margin: 0 auto !important;
-          display: grid !important;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
-          gap: 24px !important;
-        }
-        .sf-card-project {
-          background: rgba(6, 22, 46, 0.92) !important;
-          border: 1px solid rgba(0, 243, 255, 0.35) !important;
-          border-radius: 12px !important;
-          padding: 24px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: space-between !important;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
-          transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
-          box-sizing: border-box !important;
-        }
-        .sf-card-project:hover {
-          transform: translateY(-5px) !important;
-          border-color: #00f3ff !important;
-          box-shadow: 0 0 25px rgba(0, 243, 255, 0.3) !important;
-        }
-        .sf-filter-btn {
-          background: rgba(4, 18, 38, 0.8) !important;
-          border: 1px solid rgba(0, 243, 255, 0.45) !important;
-          color: #00f3ff !important;
-          padding: 9px 18px !important;
-          border-radius: 6px !important;
-          font-family: monospace !important;
-          cursor: pointer !important;
-          font-weight: bold !important;
-          font-size: 0.82rem !important;
-          letter-spacing: 1px !important;
-        }
-        .sf-filter-btn.active, .sf-filter-btn:hover {
-          background: #00f3ff !important;
-          color: #030a16 !important;
-          box-shadow: 0 0 14px rgba(0, 243, 255, 0.6) !important;
-        }
-        .sf-link-btn {
-          flex: 1 !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          padding: 9px 10px !important;
-          border-radius: 6px !important;
-          font-size: 0.78rem !important;
-          font-weight: bold !important;
-          text-decoration: none !important;
-          font-family: monospace !important;
-          cursor: pointer !important;
-          box-sizing: border-box !important;
-        }
-      `}</style>
-
-      {/* ENCABEZADO */}
-      <div style={{ maxWidth: '1140px', margin: '0 auto 36px auto', textAlign: 'center' }}>
-        <div
-          style={{
-            display: 'inline-block',
-            backgroundColor: 'rgba(0, 243, 255, 0.1)',
-            border: '1px solid #00f3ff',
-            padding: '5px 16px',
-            borderRadius: '20px',
-            fontSize: '0.75rem',
-            letterSpacing: '2px',
-            marginBottom: '14px',
-          }}
-        >
+    <section className="w-full max-w-6xl mx-auto px-4 py-10 text-cyan-50 font-mono">
+      {/* Encabezado */}
+      <div className="text-center mb-8">
+        <span className="inline-block px-4 py-1 mb-3 text-xs tracking-widest uppercase border border-cyan-400/50 rounded-full bg-cyan-950/40 text-cyan-300">
           // INGENIERÍA INFORMÁTICA - UCASAL //
-        </div>
-
-        <h1
-          style={{
-            fontSize: '2.6rem',
-            fontWeight: '900',
-            letterSpacing: '4px',
-            color: '#00f3ff',
-            textShadow: '0 0 20px rgba(0, 243, 255, 0.6)',
-            margin: '0 0 8px 0',
-          }}
-        >
+        </span>
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-wider text-cyan-300 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]">
           SANTIAGO GÓMEZ
         </h1>
-
-        <div
-          style={{
-            fontSize: '1rem',
-            color: '#00ff66',
-            letterSpacing: '2px',
-            fontWeight: 'bold',
-            marginBottom: '14px',
-          }}
-        >
-          [ FULL STACK DEVELOPER &amp; SOFTWARE ARCHITECT ]
-        </div>
-
-        <p style={{ color: '#94a3b8', fontSize: '0.98rem', maxWidth: '680px', margin: '0 auto 22px auto', lineHeight: '1.6' }}>
+        <p className="mt-2 text-sm tracking-widest text-emerald-400 font-semibold">
+          [ FULL STACK DEVELOPER & SOFTWARE ARCHITECT ]
+        </p>
+        <p className="max-w-2xl mx-auto mt-3 text-xs md:text-sm text-slate-300 leading-relaxed">
           Desarrollo de software frontend y backend, arquitectura de componentes modulares y sistemas con estética Cyberpunk de alta densidad visual.
         </p>
 
-        {/* BANNER DE ESTADO DE SESIÓN */}
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '8px 18px',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            fontWeight: 'bold',
-            backgroundColor: estaLogueado ? 'rgba(0, 255, 102, 0.12)' : 'rgba(255, 102, 139, 0.12)',
-            border: `1px solid ${estaLogueado ? '#00ff66' : '#ff668b'}`,
-            color: estaLogueado ? '#00ff66' : '#ff668b',
-          }}
-        >
-          {estaLogueado
-            ? '🔓 SESIÓN VERIFICADA: ENLACES DE REPOSITORIO Y DEMOS DESBLOQUEADOS'
-            : '🔒 MODO VISITANTE: INICIÁ SESIÓN PARA DESBLOQUEAR LOS LINKS DE PROYECTOS'}
-        </div>
+        {/* Banner de estado según rol */}
+        {!estaLogueado && (
+          <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-rose-500/50 bg-rose-950/30 text-rose-300 text-xs">
+            <span>🔒 MODO VISITANTE: INICIÁ SESIÓN PARA DESBLOQUEAR LOS LINKS DE PROYECTOS</span>
+          </div>
+        )}
+
+        {esAdmin && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <span className="px-3 py-1.5 rounded-lg border border-amber-400/60 bg-amber-950/30 text-amber-300 text-xs">
+              ⚡ MODO ADMINISTRADOR ACTIVO: PODÉS EDITAR, CREAR O ELIMINAR PROYECTOS
+            </span>
+            <button
+              onClick={abrirNuevoProyecto}
+              className="px-4 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition cursor-pointer"
+            >
+              + NUEVO PROYECTO
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* FILTROS */}
-      <div
-        style={{
-          maxWidth: '1140px',
-          margin: '0 auto 32px auto',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '12px',
-          flexWrap: 'wrap',
-        }}
-      >
+      {/* Filtros de categoría */}
+      <div className="flex flex-wrap justify-center gap-3 mb-8">
         {[
           { id: 'todos', label: '[ TODOS LOS MÓDULOS ]' },
           { id: 'frontend', label: '[ FRONTEND & REACT ]' },
           { id: 'fullstack', label: '[ SISTEMAS & DASHBOARDS ]' },
-          { id: 'engine', label: '[ ENGINE & CANVAS ]' },
-        ].map((f) => (
+          { id: 'engine', label: '[ ENGINE & CANVAS ]' }
+        ].map((cat) => (
           <button
-            key={f.id}
-            onClick={() => setCategoriaActiva(f.id)}
-            className={`sf-filter-btn ${categoriaActiva === f.id ? 'active' : ''}`}
+            key={cat.id}
+            onClick={() => setCategoriaActiva(cat.id)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wider border transition cursor-pointer ${
+              categoriaActiva === cat.id
+                ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.5)]'
+                : 'bg-slate-900/70 text-cyan-300 border-cyan-500/30 hover:border-cyan-400'
+            }`}
           >
-            {f.label}
+            {cat.label}
           </button>
         ))}
       </div>
 
-      {/* GRILLA DE TARJETAS */}
-      <div className="sf-grid-proyectos">
-        {proyectosFiltrados.map((proy) => (
-          <div key={proy.id} className="sf-card-project">
+      {/* Grilla de Proyectos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {proyectosFiltrados.map((proyecto) => (
+          <article
+            key={proyecto.id}
+            className="flex flex-col justify-between p-5 rounded-xl bg-slate-900/80 border border-cyan-500/30 hover:border-cyan-400 transition shadow-[0_0_20px_rgba(6,182,212,0.08)]"
+          >
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    color: '#00ff66',
-                    border: '1px solid #00ff66',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    letterSpacing: '1px',
-                  }}
-                >
-                  {proy.categoria.toUpperCase()}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="px-2.5 py-0.5 text-[10px] uppercase font-bold rounded border border-emerald-400/50 bg-emerald-950/40 text-emerald-300">
+                  {proyecto.categoria}
                 </span>
-                {proy.destacado && (
-                  <span style={{ fontSize: '0.72rem', color: '#ff0055', letterSpacing: '1px', fontWeight: 'bold' }}>
+                {proyecto.destacado && (
+                  <span className="text-[11px] font-bold text-rose-400 tracking-wider">
                     ★ DESTACADO
                   </span>
                 )}
               </div>
 
-              <h3
-                style={{
-                  fontSize: '1.2rem',
-                  color: '#00f3ff',
-                  margin: '0 0 8px 0',
-                  letterSpacing: '1px',
-                }}
-              >
-                {proy.titulo}
-              </h3>
-
-              <p style={{ color: '#38bdf8', fontSize: '0.85rem', margin: '0 0 12px 0', fontWeight: 'bold' }}>
-                {proy.tagline}
+              <h2 className="text-lg font-extrabold text-cyan-300 tracking-wide mb-2">
+                {proyecto.titulo}
+              </h2>
+              <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+                {proyecto.descripcion}
               </p>
 
-              <p style={{ color: '#94a3b8', fontSize: '0.86rem', lineHeight: '1.5', margin: '0 0 18px 0' }}>
-                {proy.descripcion}
-              </p>
-            </div>
-
-            <div>
-              {/* BADGES */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '18px' }}>
-                {proy.tech.map((t, idx) => (
+              {/* Tecnologías */}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {proyecto.tech.map((t, idx) => (
                   <span
                     key={idx}
-                    style={{
-                      fontSize: '0.72rem',
-                      backgroundColor: 'rgba(0, 243, 255, 0.08)',
-                      color: '#00f3ff',
-                      border: '1px solid rgba(0, 243, 255, 0.35)',
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                    }}
+                    className="px-2 py-0.5 text-[10px] rounded bg-slate-800 text-cyan-200 border border-cyan-500/20"
                   >
                     {t}
                   </span>
                 ))}
               </div>
+            </div>
 
-              {/* BOTONES DE ENLACES CON TRABA */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <a
-                  href={estaLogueado ? proy.repoUrl : '#login-requerido'}
-                  target={estaLogueado ? '_blank' : undefined}
-                  rel={estaLogueado ? 'noopener noreferrer' : undefined}
-                  onClick={(e) => manejarAccesoProtegido(e, 'link')}
-                  className="sf-link-btn"
-                  style={{
-                    backgroundColor: estaLogueado ? 'rgba(0, 255, 102, 0.14)' : 'rgba(15, 23, 42, 0.9)',
-                    border: `1px solid ${estaLogueado ? '#00ff66' : '#475569'}`,
-                    color: estaLogueado ? '#00ff66' : '#94a3b8',
-                  }}
+            <div className="pt-3 border-t border-slate-800 space-y-2">
+              {/* Botones de enlaces (bloqueados para visitantes) */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={(e) => manejarAccesoLink(e, proyecto.repoUrl, 'repositorio GitHub')}
+                  className={`px-3 py-2 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                    estaLogueado
+                      ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-200 hover:bg-cyan-500/25'
+                      : 'bg-slate-950/70 border-slate-700 text-slate-400 hover:border-rose-400/60 hover:text-rose-300'
+                  }`}
                 >
-                  {estaLogueado ? '↗ GITHUB' : '🔒 GITHUB'}
-                </a>
+                  {estaLogueado ? '📂 CÓDIGO GIT' : '🔒 CÓDIGO GIT'}
+                </button>
 
-                <a
-                  href={estaLogueado ? proy.demoUrl : '#login-requerido'}
-                  target={estaLogueado ? '_blank' : undefined}
-                  rel={estaLogueado ? 'noopener noreferrer' : undefined}
-                  onClick={(e) => manejarAccesoProtegido(e, 'link')}
-                  className="sf-link-btn"
-                  style={{
-                    backgroundColor: estaLogueado ? 'rgba(0, 243, 255, 0.14)' : 'rgba(15, 23, 42, 0.9)',
-                    border: `1px solid ${estaLogueado ? '#00f3ff' : '#475569'}`,
-                    color: estaLogueado ? '#00f3ff' : '#94a3b8',
-                  }}
+                <button
+                  onClick={(e) => manejarAccesoLink(e, proyecto.demoUrl, 'despliegue en vivo')}
+                  className={`px-3 py-2 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                    estaLogueado
+                      ? 'bg-emerald-500/15 border-emerald-400/60 text-emerald-200 hover:bg-emerald-500/25'
+                      : 'bg-slate-950/70 border-slate-700 text-slate-400 hover:border-rose-400/60 hover:text-rose-300'
+                  }`}
                 >
-                  {estaLogueado ? '↗ DEMO' : '🔒 DEMO'}
-                </a>
+                  {estaLogueado ? '🚀 DEMO LIVE' : '🔒 DEMO LIVE'}
+                </button>
               </div>
 
               <button
-                onClick={(e) => manejarAccesoProtegido(e, 'modal', proy)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: estaLogueado ? 'rgba(0, 243, 255, 0.15)' : 'rgba(255, 102, 139, 0.12)',
-                  border: `1px solid ${estaLogueado ? '#00f3ff' : '#ff668b'}`,
-                  color: estaLogueado ? '#00f3ff' : '#ff668b',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontFamily: 'monospace',
-                  letterSpacing: '1px',
-                }}
+                onClick={() => setProyectoSeleccionado(proyecto)}
+                className="w-full py-1.5 rounded-lg text-[11px] text-slate-300 bg-slate-800/70 hover:bg-slate-800 border border-slate-700 transition cursor-pointer"
               >
-                {estaLogueado ? 'INSPECCIONAR MÉTRICAS' : '🔒 INICIAR SESIÓN PARA VER'}
+                [ INSPECCIONAR MÉTRICAS ]
               </button>
+
+              {/* Controles exclusivos para el Administrador */}
+              {esAdmin && (
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-amber-500/30">
+                  <button
+                    onClick={() => abrirEdicion(proyecto)}
+                    className="py-1.5 rounded-lg text-[11px] font-bold bg-amber-500/20 border border-amber-400/70 text-amber-200 hover:bg-amber-500/30 transition cursor-pointer"
+                  >
+                    ✏️ EDITAR
+                  </button>
+                  <button
+                    onClick={() => eliminarProyectoAdmin(proyecto.id, proyecto.titulo)}
+                    className="py-1.5 rounded-lg text-[11px] font-bold bg-rose-500/20 border border-rose-400/70 text-rose-200 hover:bg-rose-500/30 transition cursor-pointer"
+                  >
+                    🗑️ ELIMINAR
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          </article>
         ))}
       </div>
 
-      {/* MODAL DE MÉTRICAS */}
+      {/* Modal de Inspección de Métricas */}
       {proyectoSeleccionado && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(3, 10, 22, 0.92)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#041226',
-              border: '2px solid #00f3ff',
-              boxShadow: '0 0 35px rgba(0, 243, 255, 0.4)',
-              borderRadius: '12px',
-              maxWidth: '520px',
-              width: '100%',
-              padding: '28px',
-              position: 'relative',
-            }}
-          >
-            <button
-              onClick={() => setProyectoSeleccionado(null)}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '15px',
-                background: 'none',
-                border: 'none',
-                color: '#ff0055',
-                fontSize: '1.4rem',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              ✕
-            </button>
-            <h3 style={{ color: '#00f3ff', fontSize: '1.4rem', marginBottom: '8px', letterSpacing: '2px' }}>
-              {proyectoSeleccionado.titulo}
-            </h3>
-            <p style={{ color: '#00ff66', fontSize: '0.85rem', marginBottom: '18px' }}>
-              // ESPECIFICACIÓN DE TELEMETRÍA Y ARQUITECTURA //
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-lg p-6 rounded-xl bg-slate-900 border border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.3)]">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-extrabold text-cyan-300">
+                {proyectoSeleccionado.titulo}
+              </h3>
+              <button
+                onClick={() => setProyectoSeleccionado(null)}
+                className="text-slate-400 hover:text-white text-sm font-bold cursor-pointer"
+              >
+                [ X ]
+              </button>
+            </div>
+            <p className="text-xs text-emerald-400 mb-3">{proyectoSeleccionado.tagline}</p>
+            <p className="text-xs text-slate-300 leading-relaxed mb-4">
+              {proyectoSeleccionado.detalles}
             </p>
-            <div
-              style={{
-                backgroundColor: '#020a18',
-                padding: '16px',
-                borderRadius: '8px',
-                border: '1px solid rgba(0, 243, 255, 0.2)',
-                marginBottom: '18px',
-              }}
-            >
-              {Object.entries(proyectoSeleccionado.metricas).map(([k, v], i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#94a3b8', textTransform: 'uppercase' }}>{k}:</span>
-                  <span style={{ color: '#00f3ff', fontWeight: 'bold' }}>{v}</span>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {Object.entries(proyectoSeleccionado.metricas || {}).map(([k, v]) => (
+                <div key={k} className="p-2.5 rounded bg-slate-950 border border-cyan-500/20 text-center">
+                  <div className="text-[10px] text-slate-400 uppercase">{k}</div>
+                  <div className="text-xs font-bold text-cyan-300 mt-0.5">{v}</div>
                 </div>
               ))}
             </div>
-            <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5', marginBottom: '22px' }}>
-              {proyectoSeleccionado.detalles}
-            </p>
             <button
               onClick={() => setProyectoSeleccionado(null)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#00f3ff',
-                color: '#030a16',
-                border: 'none',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                letterSpacing: '2px',
-              }}
+              className="w-full py-2 rounded-lg bg-cyan-500 text-slate-950 font-bold text-xs cursor-pointer"
             >
-              CERRAR MÓDULO
+              CERRAR INSPECCIÓN
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Modal de Edición / Creación para Administrador */}
+      {(proyectoEditando !== null || creandoNuevo) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overflow-y-auto">
+          <form
+            onSubmit={guardarProyectoAdmin}
+            className="w-full max-w-lg p-6 rounded-xl bg-slate-900 border border-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.25)] space-y-3"
+          >
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+              <h3 className="text-base font-extrabold text-amber-300">
+                {creandoNuevo ? '+ AGREGAR NUEVO PROYECTO' : '✏️ EDITAR PROYECTO'}
+              </h3>
+              <button
+                type="button"
+                onClick={cerrarModalAdmin}
+                className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+              >
+                [ CERRAR ]
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-cyan-300 mb-1">Título del proyecto *</label>
+              <input
+                type="text"
+                value={formProyecto.titulo}
+                onChange={(e) => setFormProyecto({ ...formProyecto, titulo: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-cyan-300 mb-1">Categoría</label>
+                <select
+                  value={formProyecto.categoria}
+                  onChange={(e) => setFormProyecto({ ...formProyecto, categoria: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+                >
+                  <option value="frontend">Frontend & React</option>
+                  <option value="fullstack">Sistemas & Dashboards</option>
+                  <option value="engine">Engine & Canvas</option>
+                </select>
+              </div>
+
+              <div className="flex items-center pt-5">
+                <label className="inline-flex items-center gap-2 text-xs text-rose-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formProyecto.destacado}
+                    onChange={(e) => setFormProyecto({ ...formProyecto, destacado: e.target.checked })}
+                  />
+                  ★ Marcar como Destacado
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-cyan-300 mb-1">Descripción *</label>
+              <textarea
+                rows={3}
+                value={formProyecto.descripcion}
+                onChange={(e) => setFormProyecto({ ...formProyecto, descripcion: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-cyan-300 mb-1">Tecnologías (separadas por coma)</label>
+              <input
+                type="text"
+                value={formProyecto.tech}
+                onChange={(e) => setFormProyecto({ ...formProyecto, tech: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-cyan-300 mb-1">URL Repositorio GitHub</label>
+                <input
+                  type="text"
+                  value={formProyecto.repoUrl}
+                  onChange={(e) => setFormProyecto({ ...formProyecto, repoUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-cyan-300 mb-1">URL Demo Live</label>
+                <input
+                  type="text"
+                  value={formProyecto.demoUrl}
+                  onChange={(e) => setFormProyecto({ ...formProyecto, demoUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={cerrarModalAdmin}
+                className="w-1/2 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer"
+              >
+                CANCELAR
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 py-2 rounded-lg bg-amber-400 text-slate-950 text-xs font-extrabold hover:bg-amber-300 cursor-pointer"
+              >
+                GUARDAR CAMBIOS
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </section>
